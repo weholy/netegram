@@ -13,12 +13,14 @@ private final class NetegramSettingsControllerArguments {
     let openAppearance: () -> Void
     let openLiquidGlass: () -> Void
     let openLocalFeatures: () -> Void
+    let openBackground: () -> Void
     let openAnnouncement: () -> Void
 
-    init(openAppearance: @escaping () -> Void, openLiquidGlass: @escaping () -> Void, openLocalFeatures: @escaping () -> Void, openAnnouncement: @escaping () -> Void) {
+    init(openAppearance: @escaping () -> Void, openLiquidGlass: @escaping () -> Void, openLocalFeatures: @escaping () -> Void, openBackground: @escaping () -> Void, openAnnouncement: @escaping () -> Void) {
         self.openAppearance = openAppearance
         self.openLiquidGlass = openLiquidGlass
         self.openLocalFeatures = openLocalFeatures
+        self.openBackground = openBackground
         self.openAnnouncement = openAnnouncement
     }
 }
@@ -31,6 +33,7 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
     case appearance
     case liquidGlass
     case localFeatures
+    case background
     case announcement
     case appearanceFooter
 
@@ -46,10 +49,12 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
             return 1
         case .localFeatures:
             return 2
-        case .announcement:
+        case .background:
             return 3
-        case .appearanceFooter:
+        case .announcement:
             return 4
+        case .appearanceFooter:
+            return 5
         }
     }
 
@@ -74,6 +79,10 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
             return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramLocalStrings.localFeatures, label: "", additionalDetailLabel: "Премиум, звёзды, эмодзи", sectionId: self.section, style: .blocks, action: {
                 arguments.openLocalFeatures()
             })
+        case .background:
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramBackgroundStrings.title, label: "", additionalDetailLabel: "Видео или фото позади экранов", sectionId: self.section, style: .blocks, action: {
+                arguments.openBackground()
+            })
         case .announcement:
             return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramAnnouncementStrings.title, label: "", additionalDetailLabel: "Плашка в списке чатов", sectionId: self.section, style: .blocks, action: {
                 arguments.openAnnouncement()
@@ -85,7 +94,7 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
 }
 
 private func netegramSettingsEntries(isAnnouncementOwner: Bool) -> [NetegramSettingsEntry] {
-    var entries: [NetegramSettingsEntry] = [.appearance, .liquidGlass, .localFeatures]
+    var entries: [NetegramSettingsEntry] = [.appearance, .liquidGlass, .localFeatures, .background]
     if isAnnouncementOwner {
         entries.append(.announcement)
     }
@@ -101,6 +110,8 @@ public func netegramSettingsController(context: AccountContext) -> ViewControlle
         pushControllerImpl?(netegramLiquidGlassController(context: context))
     }, openLocalFeatures: {
         pushControllerImpl?(netegramLocalFeaturesController(context: context))
+    }, openBackground: {
+        pushControllerImpl?(netegramBackgroundController(context: context))
     }, openAnnouncement: {
         pushControllerImpl?(netegramAnnouncementController(context: context))
     })

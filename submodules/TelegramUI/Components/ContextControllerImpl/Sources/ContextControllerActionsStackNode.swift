@@ -1471,17 +1471,37 @@ private final class LensTransitionContainerEffectViewImpl: UIView, LensTransitio
         fatalError("init(coder:) has not been implemented")
     }
     
+    /// Caches the "Liquid Glass everywhere" preference. The key is mirrored in
+    /// NetegramSettings — this module cannot import SettingsUI, which depends on it.
+    fileprivate final class NetegramContextGlassPreference {
+        static let shared = NetegramContextGlassPreference()
+
+        private(set) var everywhere: Bool = false
+
+        private init() {
+            self.reload()
+            NotificationCenter.default.addObserver(
+                forName: UserDefaults.didChangeNotification,
+                object: nil,
+                queue: .main,
+                using: { [weak self] _ in
+                    self?.reload()
+                }
+            )
+        }
+
+        private func reload() {
+            self.everywhere = UserDefaults.standard.bool(forKey: "netegram.liquidGlass.everywhere")
+        }
+    }
+
     func update(theme: PresentationTheme) {
         self.theme = theme
         if #available(iOS 26.0, *) {
-            let glassEffectValue: UIGlassEffect
-            if theme.overallDarkAppearance {
-                glassEffectValue = UIGlassEffect(style: .regular)
-                //glassEffectValue.tintColor = UIColor(white: 1.0, alpha: 0.025)
-            } else {
-                glassEffectValue = UIGlassEffect(style: .regular)
-                //glassEffectValue.tintColor = UIColor(white: 1.0, alpha: 0.1)
-            }
+            // Netegram: with "Liquid Glass everywhere" on, context menus — the sheet behind
+            // the three-dot button and the long-press chat menu — switch to the clear
+            // variant instead of the regular one.
+            let glassEffectValue = UIGlassEffect(style: NetegramContextGlassPreference.shared.everywhere ? .clear : .regular)
             self.glassView.effect = glassEffectValue
         }
     }
