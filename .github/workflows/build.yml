@@ -67,9 +67,12 @@ jobs:
       - name: Create canonical source directory
         run: |
           set -x
+          # Copy straight to the canonical name. The upstream workflow copied and then
+          # renamed, which breaks here: this repository is itself called "netegram", so the
+          # rename resolved to moving the directory into itself.
           sudo mkdir -p /Users/Shared
-          cp -R $GITHUB_WORKSPACE /Users/Shared/
-          mv /Users/Shared/$(basename $GITHUB_WORKSPACE) /Users/Shared/netegram
+          sudo rm -rf /Users/Shared/netegram
+          cp -R "$GITHUB_WORKSPACE" /Users/Shared/netegram
 
       - name: Build the App
         run: |
