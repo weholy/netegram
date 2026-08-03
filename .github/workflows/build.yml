@@ -105,16 +105,16 @@ jobs:
           # device build asks for, so a device IPA needs real provisioning profiles issued
           # for this bundle id. This still compiles every line of Swift, which is what CI
           # is here to verify.
-          # --disableProvisioningProfiles belongs to `generateProject`, not `build`; the
-          # simulator configuration needs no profiles anyway. --codesigningInformationPath
-          # stays because `build` requires one of the codesigning sources unconditionally.
-          python3 build-system/Make/ImportCertificates.py --path build-system/fake-codesigning/certs
+          # `build` demands one of the codesigning sources even for a simulator build.
+          # --codesigningInformationPath validates the bundled fake profiles, which lack an
+          # aps-environment entitlement and fail. --xcodeManagedCodesigning skips that
+          # validation entirely, which is what a simulator build wants.
           python3 -u build-system/Make/Make.py \
             --bazelUserRoot="$BAZEL_USER_ROOT" \
             --cacheDir="$HOME/.cache/netegram-bazel" \
             build \
             --configurationPath="build-system/ci-configuration.json" \
-            --codesigningInformationPath=build-system/fake-codesigning \
+            --xcodeManagedCodesigning \
             --configuration=debug_sim_arm64 \
             --buildNumber="$BUILD_NUMBER"
 
