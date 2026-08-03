@@ -8,10 +8,12 @@ on:
 
 jobs:
   build:
-    runs-on: macos-13
+    # versions.json requires macOS 26 / Xcode 26.2. The macos-13 image this workflow
+    # originally asked for has been retired by GitHub, so the job queued forever.
+    runs-on: macos-26
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
           fetch-depth: '0'
@@ -19,21 +21,62 @@ jobs:
       - name: Set active Xcode path
         run: |
           XCODE_VERSION=$(cat versions.json | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj["xcode"]);')
+          echo "Requested Xcode $XCODE_VERSION; available:"
+          ls /Applications | grep -i '^Xcode' || true
           sudo xcode-select -s /Applications/Xcode_$XCODE_VERSION.app/Contents/Developer
+          xcodebuild -version
+
+      # The real configuration carries api_id/api_hash and is deliberately not in the
+      # repository (see .gitignore). Recreate it here from repository secrets.
+      - name: Create build configuration
+        env:
+          API_ID: ${{ secrets.API_ID }}
+          API_HASH: ${{ secrets.API_HASH }}
+        run: |
+          if [ -z "$API_ID" ] || [ -z "$API_HASH" ]; then
+            echo "::error::Set the API_ID and API_HASH repository secrets (Settings > Secrets and variables > Actions)."
+            exit 1
+          fi
+          cat > build-system/ci-configuration.json <<EOF
+          {
+            "bundle_id": "org.netegram.Netegram",
+            "api_id": "$API_ID",
+            "api_hash": "$API_HASH",
+            "team_id": "0123456789",
+            "app_center_id": "0",
+            "is_internal_build": "true",
+            "is_appstore_build": "false",
+            "appstore_id": "0",
+            "app_specific_url_scheme": "tg",
+            "premium_iap_product_id": "",
+            "enable_siri": false,
+            "enable_icloud": false
+          }
+          EOF
+
+      # Matches --disk_cache in .bazelrc, so a build that dies partway resumes from here
+      # on the next run instead of recompiling everything.
+      - name: Restore Bazel disk cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/netegram-bazel
+          key: netegram-bazel-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            netegram-bazel-${{ runner.os }}-
 
       - name: Create canonical source directory
         run: |
           set -x
           sudo mkdir -p /Users/Shared
           cp -R $GITHUB_WORKSPACE /Users/Shared/
-          mv /Users/Shared/$(basename $GITHUB_WORKSPACE) /Users/Shared/telegram-ios
+          mv /Users/Shared/$(basename $GITHUB_WORKSPACE) /Users/Shared/netegram
 
       - name: Build the App
         run: |
           set -x
 
           # source code paths are included in the final binary, so we need to make them stable across builds
-          SOURCE_DIR=/Users/Shared/telegram-ios
+          SOURCE_DIR=/Users/Shared/netegram
 
           # use canonical bazel root
           BAZEL_USER_ROOT="/private/var/tmp/_bazel_containerhost"
@@ -52,8 +95,9 @@ jobs:
           python3 build-system/Make/ImportCertificates.py --path build-system/fake-codesigning/certs
           python3 -u build-system/Make/Make.py \
             --bazelUserRoot="$BAZEL_USER_ROOT" \
+            --cacheDir="$HOME/.cache/netegram-bazel" \
             build \
-            --configurationPath="build-system/appstore-configuration.json" \
+            --configurationPath="build-system/ci-configuration.json" \
             --codesigningInformationPath=build-system/fake-codesigning \
             --configuration=release_arm64 \
             --buildNumber="$BUILD_NUMBER"
@@ -63,7 +107,7 @@ jobs:
           rm -rf "$OUTPUT_PATH"
           mkdir -p "$OUTPUT_PATH"
           for f in bazel-out/applebin_ios-ios_arm*-opt-ST-*/bin/Telegram/Telegram.ipa; do
-            cp "$f" $OUTPUT_PATH/
+            cp "$f" $OUTPUT_PATH/Netegram.ipa
           done
 
           # collect dsym
@@ -71,39 +115,22 @@ jobs:
           for f in bazel-out/applebin_ios-ios_arm*-opt-ST-*/bin/Telegram/*.dSYM; do
             cp -R "$f" build/DSYMs/
           done
-          zip -r "./$OUTPUT_PATH/Telegram.DSYMs.zip" build/DSYMs 1>/dev/null
+          zip -r "./$OUTPUT_PATH/Netegram.DSYMs.zip" build/DSYMs 1>/dev/null
 
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # actions/create-release and actions/upload-release-asset are archived by GitHub and
+      # fail on current runners. Artifacts are enough and need no token handling.
+      - name: Upload IPA
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: build-${{ env.BUILD_NUMBER }}
-          release_name: Telegram ${{ env.APP_VERSION }} (${{ env.BUILD_NUMBER }})
-          body: |
-            An unsigned build of Telegram for iOS ${{ env.APP_VERSION }} (${{ env.BUILD_NUMBER }})
-          draft: false
-          prerelease: false
+          name: Netegram-${{ env.APP_VERSION }}-${{ env.BUILD_NUMBER }}
+          path: /Users/Shared/netegram/build/artifacts/Netegram.ipa
+          if-no-files-found: warn
 
-      - name: Upload Release IPA
-        id: upload-release-ipa 
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload DSYMs
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: /Users/Shared/telegram-ios/build/artifacts/Telegram.ipa
-          asset_name: Telegram.ipa
-          asset_content_type: application/zip
-
-      - name: Upload Release DSYM
-        id: upload-release-dsym 
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: /Users/Shared/telegram-ios/build/artifacts/Telegram.DSYMs.zip
-          asset_name: Telegram.DSYMs.zip
-          asset_content_type: application/zip
+          name: Netegram-DSYMs-${{ env.BUILD_NUMBER }}
+          path: /Users/Shared/netegram/build/artifacts/Netegram.DSYMs.zip
+          if-no-files-found: warn
