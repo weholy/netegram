@@ -23,6 +23,22 @@ public enum NetegramStrings {
     public static let liquidGlassEverywhereFooter = "Панели, шапки, кнопки и блоки по всему приложению."
 }
 
+/// State of the three Liquid Glass toggles.
+///
+/// A struct rather than a tuple: ValuePromise requires Equatable, and Swift tuples do not
+/// conform to it however simple their elements are.
+public struct NetegramLiquidGlassSettings: Equatable {
+    public let messages: Bool
+    public let inlineButtons: Bool
+    public let everywhere: Bool
+
+    public init(messages: Bool, inlineButtons: Bool, everywhere: Bool) {
+        self.messages = messages
+        self.inlineButtons = inlineButtons
+        self.everywhere = everywhere
+    }
+}
+
 /// The app icon baked into the bundle as the primary icon (Netegram artwork).
 public let netegramDefaultAppIconName = "NetegramIcon"
 /// The alternate icon carrying the original Telegram artwork. This must match the key in
@@ -48,13 +64,12 @@ public final class NetegramSettings {
 
     private let valuePromise: ValuePromise<Bool>
     private let customIconsPromise: ValuePromise<Bool>
-    private let liquidGlassPromise: ValuePromise<(messages: Bool, inlineButtons: Bool, everywhere: Bool)>
+    private let liquidGlassPromise: ValuePromise<NetegramLiquidGlassSettings>
 
     private init() {
         self.valuePromise = ValuePromise(UserDefaults.standard.bool(forKey: useOriginalTelegramLogoKey), ignoreRepeated: true)
         self.customIconsPromise = ValuePromise(UserDefaults.standard.bool(forKey: customSettingsIconsKey), ignoreRepeated: true)
-        // Tuples are not Equatable, so repeats cannot be filtered here.
-        self.liquidGlassPromise = ValuePromise(NetegramSettings.currentLiquidGlass())
+        self.liquidGlassPromise = ValuePromise(NetegramSettings.currentLiquidGlass(), ignoreRepeated: true)
     }
 
     /// When enabled, the app presents Telegram's original branding instead of Netegram's.
@@ -98,7 +113,7 @@ public final class NetegramSettings {
         return UserDefaults.standard.bool(forKey: liquidGlassEverywhereKey)
     }
 
-    public var liquidGlassSignal: Signal<(messages: Bool, inlineButtons: Bool, everywhere: Bool), NoError> {
+    public var liquidGlassSignal: Signal<NetegramLiquidGlassSettings, NoError> {
         return self.liquidGlassPromise.get()
     }
 
@@ -121,9 +136,9 @@ public final class NetegramSettings {
         self.liquidGlassPromise.set(NetegramSettings.currentLiquidGlass())
     }
 
-    private static func currentLiquidGlass() -> (messages: Bool, inlineButtons: Bool, everywhere: Bool) {
+    private static func currentLiquidGlass() -> NetegramLiquidGlassSettings {
         let defaults = UserDefaults.standard
-        return (
+        return NetegramLiquidGlassSettings(
             messages: defaults.bool(forKey: liquidGlassMessagesKey),
             inlineButtons: defaults.bool(forKey: liquidGlassInlineButtonsKey),
             everywhere: defaults.bool(forKey: liquidGlassEverywhereKey)
