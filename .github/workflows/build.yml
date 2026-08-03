@@ -44,7 +44,7 @@ jobs:
           API_HASH_CLEAN=$(printf '%s' "$API_HASH" | tr -d '[:space:]')
           cat > build-system/ci-configuration.json <<EOF
           {
-            "bundle_id": "org.netegram.Netegram",
+            "bundle_id": "ph.telegra.Telegraph",
             "api_id": "$API_ID_CLEAN",
             "api_hash": "$API_HASH_CLEAN",
             "team_id": "0123456789",
@@ -105,16 +105,18 @@ jobs:
           # device build asks for, so a device IPA needs real provisioning profiles issued
           # for this bundle id. This still compiles every line of Swift, which is what CI
           # is here to verify.
-          # `build` demands one of the codesigning sources even for a simulator build.
-          # --codesigningInformationPath validates the bundled fake profiles, which lack an
-          # aps-environment entitlement and fail. --xcodeManagedCodesigning skips that
-          # validation entirely, which is what a simulator build wants.
+          # Telegram/BUILD references a .mobileprovision per app extension, so the
+          # provisioning package must be populated — --xcodeManagedCodesigning leaves it
+          # empty and the load phase fails. The bundled fake profiles are issued for
+          # ph.telegra.Telegraph, which is why the CI configuration above has to use that
+          # bundle id: any other value makes their entitlements fail validation.
+          python3 build-system/Make/ImportCertificates.py --path build-system/fake-codesigning/certs
           python3 -u build-system/Make/Make.py \
             --bazelUserRoot="$BAZEL_USER_ROOT" \
             --cacheDir="$HOME/.cache/netegram-bazel" \
             build \
             --configurationPath="build-system/ci-configuration.json" \
-            --xcodeManagedCodesigning \
+            --codesigningInformationPath=build-system/fake-codesigning \
             --configuration=debug_sim_arm64 \
             --buildNumber="$BUILD_NUMBER"
 
