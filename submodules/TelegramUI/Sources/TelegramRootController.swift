@@ -239,7 +239,30 @@ public final class TelegramRootController: NavigationController, TelegramRootCon
         accountSettingsController.parentController = self
         controllers.append(accountSettingsController)
                 
-        tabBarController.setControllers(controllers, selectedIndex: restoreSettignsController != nil ? (controllers.count - 1) : (controllers.count - 2))
+        // Netegram: drop the tabs the user chose to hide. The tab bar shows only what it is
+        // given, so the remaining tabs close the gap on their own.
+        let hiddenTabs = UserDefaults.standard.stringArray(forKey: "netegram.look.hiddenNavTabs") ?? []
+        if !hiddenTabs.isEmpty {
+            if hiddenTabs.contains("contacts") {
+                controllers.removeAll(where: { $0 === contactsController })
+            }
+            if hiddenTabs.contains("calls") {
+                controllers.removeAll(where: { $0 === callListController })
+            }
+            if hiddenTabs.contains("chats") {
+                controllers.removeAll(where: { $0 === chatListController })
+            }
+            if hiddenTabs.contains("settings") {
+                controllers.removeAll(where: { $0 === accountSettingsController })
+            }
+            // Never leave the bar empty — that would strand the user with no way back.
+            if controllers.isEmpty {
+                controllers.append(chatListController)
+            }
+        }
+
+        let selectedIndex = max(0, min(controllers.count - 1, restoreSettignsController != nil ? (controllers.count - 1) : (controllers.count - 2)))
+        tabBarController.setControllers(controllers, selectedIndex: selectedIndex)
         
         self.contactsController = contactsController
         self.callListController = callListController
