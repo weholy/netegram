@@ -451,7 +451,14 @@ func _internal_fetchAndUpdateCachedPeerData(accountPeerId: PeerId, peerId rawPee
                                         let botGroupAdminRights = groupAdminRights.flatMap { TelegramChatAdminRights(apiAdminRights: $0) }
                                         let botChannelAdminRights = channelAdminRights.flatMap { TelegramChatAdminRights(apiAdminRights: $0) }
                                     
-                                        let mappedStarRating = starsRating.flatMap(TelegramStarRating.init(apiRating:))
+                                        // Netegram: a local rating override replaces the
+                                        // server value the moment it is parsed, so every
+                                        // consumer downstream — the profile badge and the
+                                        // level screen — sees the substituted number.
+                                        var mappedStarRating = starsRating.flatMap(TelegramStarRating.init(apiRating:))
+                                        if let localRating = netegramLocalStarRating(for: peerId) {
+                                            mappedStarRating = localRating
+                                        }
                                         var pendingRating: TelegramStarPendingRating?
                                         if let starsMyPendingRating, let starsMyPendingRatingDate {
                                             pendingRating = TelegramStarPendingRating(

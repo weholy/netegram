@@ -108,6 +108,104 @@ public func netegramSetLocalUsername(_ username: String?, for peerId: PeerId) {
 public func netegramCurrentLocalUsername(for peerId: PeerId) -> String? {
     return netegramLocalUsername(for: peerId)
 }
+
+/// Per-peer local star rating overrides: peer id -> star count, and an optional explicit
+/// level. When no level is given it follows the star count.
+private let netegramLocalRatingStarsKey = "netegram.local.ratingStars"
+private let netegramLocalRatingLevelKey = "netegram.local.ratingLevel"
+
+/// Stars needed per level. Telegram's own thresholds are not published, so the client uses
+/// a flat step — the first level lands at 5000, matching what the profile shows.
+private let netegramStarsPerLevel: Int64 = 5000
+
+private final class NetegramLocalRatingState {
+    static let shared = NetegramLocalRatingState()
+
+    private var stars: [String: Int] = [:]
+    private var levels: [String: Int] = [:]
+
+    private init() {
+        self.reload()
+        NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification,
+            object: nil,
+            queue: .main,
+            using: { [weak self] _ in
+                self?.reload()
+            }
+        )
+    }
+
+    private func reload() {
+        let defaults = UserDefaults.standard
+        self.stars = (defaults.dictionary(forKey: netegramLocalRatingStarsKey) as? [String: Int]) ?? [:]
+        self.levels = (defaults.dictionary(forKey: netegramLocalRatingLevelKey) as? [String: Int]) ?? [:]
+    }
+
+    func rating(for peerId: PeerId) -> TelegramStarRating? {
+        guard !self.stars.isEmpty || !self.levels.isEmpty else {
+            return nil
+        }
+        let key = "\(peerId.toInt64())"
+        let starsValue = Int64(self.stars[key] ?? 0)
+        guard starsValue > 0 || self.levels[key] != nil else {
+            return nil
+        }
+
+        let level: Int32
+        if let explicit = self.levels[key] {
+            level = Int32(explicit)
+        } else {
+            level = Int32(starsValue / netegramStarsPerLevel)
+        }
+
+        let currentLevelStars = Int64(level) * netegramStarsPerLevel
+        let nextLevelStars = currentLevelStars + netegramStarsPerLevel
+        return TelegramStarRating(
+            level: level,
+            currentLevelStars: currentLevelStars,
+            stars: max(starsValue, currentLevelStars),
+            nextLevelStars: nextLevelStars
+        )
+    }
+}
+
+func netegramLocalStarRating(for peerId: PeerId) -> TelegramStarRating? {
+    return NetegramLocalRatingState.shared.rating(for: peerId)
+}
+
+/// Sets the local star count for a peer. Pass 0 to clear it.
+public func netegramSetLocalRatingStars(_ stars: Int, for peerId: PeerId) {
+    var values = (UserDefaults.standard.dictionary(forKey: netegramLocalRatingStarsKey) as? [String: Int]) ?? [:]
+    let key = "\(peerId.toInt64())"
+    if stars > 0 {
+        values[key] = stars
+    } else {
+        values.removeValue(forKey: key)
+    }
+    UserDefaults.standard.set(values, forKey: netegramLocalRatingStarsKey)
+}
+
+/// Sets an explicit level for a peer, overriding the one derived from the star count.
+/// Pass nil to let the level follow the stars again.
+public func netegramSetLocalRatingLevel(_ level: Int?, for peerId: PeerId) {
+    var values = (UserDefaults.standard.dictionary(forKey: netegramLocalRatingLevelKey) as? [String: Int]) ?? [:]
+    let key = "\(peerId.toInt64())"
+    if let level, level > 0 {
+        values[key] = level
+    } else {
+        values.removeValue(forKey: key)
+    }
+    UserDefaults.standard.set(values, forKey: netegramLocalRatingLevelKey)
+}
+
+public func netegramCurrentLocalRatingStars(for peerId: PeerId) -> Int {
+    return (UserDefaults.standard.dictionary(forKey: netegramLocalRatingStarsKey) as? [String: Int])?["\(peerId.toInt64())"] ?? 0
+}
+
+public func netegramCurrentLocalRatingLevel(for peerId: PeerId) -> Int? {
+    return (UserDefaults.standard.dictionary(forKey: netegramLocalRatingLevelKey) as? [String: Int])?["\(peerId.toInt64())"]
+}
 import Postbox
 
 public let anonymousSavedMessagesId: Int64 = 2666000
