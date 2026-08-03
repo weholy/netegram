@@ -37,11 +37,16 @@ jobs:
             echo "::error::Set the API_ID and API_HASH repository secrets (Settings > Secrets and variables > Actions)."
             exit 1
           fi
+          # Secrets pasted through the web UI often carry a trailing newline, which lands
+          # inside the JSON string and makes the parser fail with "Invalid control
+          # character". Strip every whitespace character before interpolating.
+          API_ID_CLEAN=$(printf '%s' "$API_ID" | tr -d '[:space:]')
+          API_HASH_CLEAN=$(printf '%s' "$API_HASH" | tr -d '[:space:]')
           cat > build-system/ci-configuration.json <<EOF
           {
             "bundle_id": "org.netegram.Netegram",
-            "api_id": "$API_ID",
-            "api_hash": "$API_HASH",
+            "api_id": "$API_ID_CLEAN",
+            "api_hash": "$API_HASH_CLEAN",
             "team_id": "0123456789",
             "app_center_id": "0",
             "is_internal_build": "true",
