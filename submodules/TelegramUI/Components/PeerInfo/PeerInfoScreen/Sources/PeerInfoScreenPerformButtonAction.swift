@@ -1280,12 +1280,35 @@ extension PeerInfoScreenNode {
                     var items = items
                     items.append(.action(ContextMenuActionItem(text: "Netegram", icon: { theme in
                         return generateTintedImage(image: UIImage(bundleImageName: "Item List/Icons/Netegram"), color: theme.contextMenu.primaryColor)
-                    }, action: { _, f in
-                        f(.dismissWithoutContent)
-                        guard let self, let navigationController = self.controller?.navigationController as? NavigationController else {
+                    }, action: { c, _ in
+                        // Opens as a nested list inside the same menu, the way the other
+                        // entries here behave — not as a pushed screen.
+                        guard let self else {
                             return
                         }
-                        navigationController.pushViewController(netegramPeerToolsController(context: self.context, peerId: peerIdForTools))
+                        let context = self.context
+                        let parentController = self.controller
+
+                        var subItems: [ContextMenuItem] = []
+                        for kind in [NetegramPeerToolKind.ratingStars, .ratingLevel, .username] {
+                            subItems.append(.action(ContextMenuActionItem(text: kind.title, icon: { _ in
+                                return nil
+                            }, action: { _, f in
+                                f(.dismissWithoutContent)
+                                guard let parentController else {
+                                    return
+                                }
+                                netegramPresentPeerToolPrompt(context: context, peerId: peerIdForTools, kind: kind, parentController: parentController)
+                            })))
+                        }
+                        subItems.append(.action(ContextMenuActionItem(text: NetegramPeerToolsStrings.usernameReset, textColor: .destructive, icon: { _ in
+                            return nil
+                        }, action: { _, f in
+                            f(.dismissWithoutContent)
+                            netegramResetLocalUsername(for: peerIdForTools)
+                        })))
+
+                        c?.pushItems(items: .single(ContextController.Items(content: .list(subItems))))
                     })))
                     return items
                 }

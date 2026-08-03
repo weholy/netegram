@@ -23,6 +23,68 @@ public enum NetegramPeerToolsStrings {
     public static let usernameFooter = "Заменяет юзернейм этого пользователя во всём клиенте. Видно только вам."
 }
 
+/// What the profile submenu can edit for a peer.
+public enum NetegramPeerToolKind {
+    case ratingStars
+    case ratingLevel
+    case username
+
+    public var title: String {
+        switch self {
+        case .ratingStars:
+            return NetegramPeerToolsStrings.ratingStars
+        case .ratingLevel:
+            return NetegramPeerToolsStrings.ratingLevel
+        case .username:
+            return NetegramPeerToolsStrings.username
+        }
+    }
+}
+
+/// Shows the input prompt for one of the per-peer overrides.
+///
+/// Lives here so the profile screen does not need to depend on PromptUI: it only knows
+/// which value the user picked from the submenu.
+public func netegramPresentPeerToolPrompt(context: AccountContext, peerId: EnginePeer.Id, kind: NetegramPeerToolKind, parentController: ViewController) {
+    let current: String
+    switch kind {
+    case .ratingStars:
+        let value = netegramCurrentLocalRatingStars(for: peerId)
+        current = value > 0 ? "\(value)" : ""
+    case .ratingLevel:
+        current = netegramCurrentLocalRatingLevel(for: peerId).map { "\($0)" } ?? ""
+    case .username:
+        current = netegramCurrentLocalUsername(for: peerId) ?? ""
+    }
+
+    let inputController = promptController(
+        context: context,
+        text: kind.title,
+        value: current,
+        apply: { value in
+            guard let value else {
+                return
+            }
+            let trimmed = value.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+            switch kind {
+            case .ratingStars:
+                netegramSetLocalRatingStars(Int(trimmed) ?? 0, for: peerId)
+            case .ratingLevel:
+                // An empty field hands the level back to the star count.
+                netegramSetLocalRatingLevel(trimmed.isEmpty ? nil : Int(trimmed), for: peerId)
+            case .username:
+                netegramSetLocalUsername(trimmed, for: peerId)
+            }
+        }
+    )
+    parentController.present(inputController, in: .window(.root))
+}
+
+/// Clears a peer's local username override.
+public func netegramResetLocalUsername(for peerId: EnginePeer.Id) {
+    netegramSetLocalUsername(nil, for: peerId)
+}
+
 private final class NetegramPeerToolsArguments {
     let editStars: (Int) -> Void
     let editLevel: (Int?) -> Void
