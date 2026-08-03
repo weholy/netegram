@@ -2439,6 +2439,18 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
             }
         }
         
+        // Netegram: with the redesign enabled, pull "Select", "Copy" and "Delete" out of the
+        // list and put them in a row at the top. Applied to the finished array so none of
+        // the assembly above has to change; with the toggle off the menu is untouched.
+        if UserDefaults.standard.bool(forKey: "netegram.look.contextRedesign") {
+            actions = netegramApplyContextRedesign(
+                actions: actions,
+                selectTitle: chatPresentationInterfaceState.strings.Conversation_ContextMenuSelect,
+                copyTitle: chatPresentationInterfaceState.strings.Conversation_ContextMenuCopy,
+                deleteTitle: chatPresentationInterfaceState.strings.Conversation_ContextMenuDelete
+            )
+        }
+
         return ContextController.Items(content: .list(actions), tip: nil)
     }
 }

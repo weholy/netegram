@@ -5,6 +5,69 @@ import Display
 import TelegramPresentationData
 import ContextUI
 
+/// Rebuilds an assembled message menu into the redesigned layout.
+///
+/// Works on the finished array rather than on the assembly itself: the menu is put together
+/// across hundreds of lines of conditions — what is allowed for your own message, someone
+/// else's, a channel post — and matching the three actions by title afterwards leaves all
+/// of that logic untouched. An action that was never added simply isn't found, so the row
+/// shrinks by itself and unavailable buttons never appear.
+func netegramApplyContextRedesign(actions: [ContextMenuItem], selectTitle: String, copyTitle: String, deleteTitle: String) -> [ContextMenuItem] {
+    var remaining: [ContextMenuItem] = []
+    var quickActions: [(rank: Int, action: ChatNetegramQuickAction)] = []
+
+    for item in actions {
+        guard case let .action(actionItem) = item else {
+            remaining.append(item)
+            continue
+        }
+
+        let rank: Int
+        let iconName: String
+        let isDestructive: Bool
+        switch actionItem.text {
+        case selectTitle:
+            rank = 0
+            iconName = "Chat/Context Menu/Select"
+            isDestructive = false
+        case copyTitle:
+            rank = 1
+            iconName = "Chat/Context Menu/Copy"
+            isDestructive = false
+        case deleteTitle:
+            rank = 2
+            iconName = "Chat/Context Menu/Delete"
+            isDestructive = true
+        default:
+            remaining.append(item)
+            continue
+        }
+
+        quickActions.append((rank, ChatNetegramQuickAction(
+            title: actionItem.text,
+            iconName: iconName,
+            isDestructive: isDestructive,
+            action: { controller, actionSelected in
+                // Reuse the original handler rather than reimplementing it, so selecting,
+                // copying and deleting keep behaving exactly as before.
+                actionItem.action?(ContextMenuActionItem.Action(
+                    controller: controller,
+                    dismissWithResult: actionSelected,
+                    updateAction: { _, _ in }
+                ))
+            }
+        )))
+    }
+
+    guard !quickActions.isEmpty else {
+        return actions
+    }
+
+    quickActions.sort(by: { $0.rank < $1.rank })
+    remaining.insert(.custom(ChatNetegramQuickActionsContextItem(actions: quickActions.map { $0.action }), false), at: 0)
+    return remaining
+}
+
 /// One button of the top row: an icon above a caption.
 struct ChatNetegramQuickAction {
     let title: String
