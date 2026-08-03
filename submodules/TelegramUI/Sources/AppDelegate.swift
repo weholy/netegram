@@ -642,7 +642,29 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         )
         
         guard let appGroupUrl = maybeAppGroupUrl else {
-            self.mainWindow?.presentNative(UIAlertController(title: nil, message: "Error 2", preferredStyle: .alert))
+            // Netegram: the original code reported this through mainWindow, which does not
+            // exist yet at this point, so the failure appeared as a plain black screen with
+            // no way to tell it apart from a crash. Put the reason on screen instead.
+            //
+            // The app group name is derived from the bundle id, so re-signing under a
+            // different id makes the shared container unreachable and lands here.
+            let diagnosticWindow = UIWindow(frame: UIScreen.main.bounds)
+            let diagnosticController = UIViewController()
+            diagnosticController.view.backgroundColor = UIColor.black
+
+            let label = UILabel()
+            label.numberOfLines = 0
+            label.textAlignment = .center
+            label.textColor = UIColor.white
+            label.font = UIFont.systemFont(ofSize: 15.0)
+            label.text = "Netegram can't start.\n\nThe app group\n\(appGroupName)\nis not available to this build.\n\nRe-signing changes the bundle id, and the app group name follows it. Register a matching app group for your signing team, or install without changing the bundle id."
+            label.frame = diagnosticController.view.bounds.insetBy(dx: 24.0, dy: 24.0)
+            label.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            diagnosticController.view.addSubview(label)
+
+            diagnosticWindow.rootViewController = diagnosticController
+            diagnosticWindow.makeKeyAndVisible()
+            self.window = diagnosticWindow
             return true
         }
         
