@@ -641,13 +641,24 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             isICloudEnabled: buildConfig.isICloudEnabled
         )
         
-        guard let appGroupUrl = maybeAppGroupUrl else {
-            // Netegram: the original code reported this through mainWindow, which does not
-            // exist yet at this point, so the failure appeared as a plain black screen with
-            // no way to tell it apart from a crash. Put the reason on screen instead.
-            //
-            // The app group name is derived from the bundle id, so re-signing under a
-            // different id makes the shared container unreachable and lands here.
+        // Netegram: fall back to the app's own container when the shared app group is
+        // unreachable.
+        //
+        // The group name is derived from the bundle id, and sideloading tools append the
+        // signing team to that id — so a re-signed build looks for a group nobody has
+        // registered and the original code bailed out here, showing a black screen.
+        //
+        // Running out of the app's own Library directory keeps the messenger fully working.
+        // What breaks is anything that relies on processes sharing one container:
+        // notification decryption, the share extension, widgets and the watch app. That is
+        // an acceptable trade for a sideloaded build, which cannot have the group anyway.
+        let appGroupUrl: URL
+        if let maybeAppGroupUrl {
+            appGroupUrl = maybeAppGroupUrl
+        } else if let ownContainerUrl = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first {
+            Logger.shared.log("App \(self.episodeId)", "App group \(appGroupName) unavailable; using the app's own container. Extensions will not share data.")
+            appGroupUrl = ownContainerUrl
+        } else {
             let diagnosticWindow = UIWindow(frame: UIScreen.main.bounds)
             let diagnosticController = UIViewController()
             diagnosticController.view.backgroundColor = UIColor.black
@@ -657,7 +668,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             label.textAlignment = .center
             label.textColor = UIColor.white
             label.font = UIFont.systemFont(ofSize: 15.0)
-            label.text = "Netegram can't start.\n\nThe app group\n\(appGroupName)\nis not available to this build.\n\nRe-signing changes the bundle id, and the app group name follows it. Register a matching app group for your signing team, or install without changing the bundle id."
+            label.text = "Netegram can't start.\n\nNeither the app group\n\(appGroupName)\nnor the app's own container could be opened."
             label.frame = diagnosticController.view.bounds.insetBy(dx: 24.0, dy: 24.0)
             label.autoresizingMask = [.flexibleWidth, .flexibleHeight]
             diagnosticController.view.addSubview(label)
