@@ -73,7 +73,7 @@ public final class NetegramLocalFeatures {
         self.promise = ValuePromise(NetegramLocalFeatures.current(), ignoreRepeated: true)
     }
 
-    public static func current(ownPeerId: PeerId? = nil) -> NetegramLocalFeatureSettings {
+    public static func current(ownPeerId: EnginePeer.Id? = nil) -> NetegramLocalFeatureSettings {
         let defaults = UserDefaults.standard
         var username = ""
         if let ownPeerId, let stored = netegramCurrentLocalUsername(for: ownPeerId) {
@@ -90,11 +90,11 @@ public final class NetegramLocalFeatures {
     }
 
     /// The screen re-reads with the signed-in peer id so the stored override can be shown.
-    public func refresh(ownPeerId: PeerId) {
+    public func refresh(ownPeerId: EnginePeer.Id) {
         self.promise.set(NetegramLocalFeatures.current(ownPeerId: ownPeerId))
     }
 
-    public func setUsernameEnabled(_ value: Bool, ownPeerId: PeerId) {
+    public func setUsernameEnabled(_ value: Bool, ownPeerId: EnginePeer.Id) {
         UserDefaults.standard.set(value, forKey: localUsernameEnabledKey)
         if !value {
             netegramSetLocalUsername(nil, for: ownPeerId)
@@ -102,7 +102,7 @@ public final class NetegramLocalFeatures {
         self.refresh(ownPeerId: ownPeerId)
     }
 
-    public func setUsername(_ value: String, ownPeerId: PeerId) {
+    public func setUsername(_ value: String, ownPeerId: EnginePeer.Id) {
         netegramSetLocalUsername(value, for: ownPeerId)
         self.refresh(ownPeerId: ownPeerId)
     }
