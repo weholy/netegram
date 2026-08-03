@@ -12,10 +12,12 @@ import AccountContext
 private final class NetegramSettingsControllerArguments {
     let openAppearance: () -> Void
     let openLiquidGlass: () -> Void
+    let openLocalFeatures: () -> Void
 
-    init(openAppearance: @escaping () -> Void, openLiquidGlass: @escaping () -> Void) {
+    init(openAppearance: @escaping () -> Void, openLiquidGlass: @escaping () -> Void, openLocalFeatures: @escaping () -> Void) {
         self.openAppearance = openAppearance
         self.openLiquidGlass = openLiquidGlass
+        self.openLocalFeatures = openLocalFeatures
     }
 }
 
@@ -26,6 +28,7 @@ private enum NetegramSettingsSection: Int32 {
 private enum NetegramSettingsEntry: ItemListNodeEntry {
     case appearance
     case liquidGlass
+    case localFeatures
     case appearanceFooter
 
     var section: ItemListSectionId {
@@ -38,8 +41,10 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
             return 0
         case .liquidGlass:
             return 1
-        case .appearanceFooter:
+        case .localFeatures:
             return 2
+        case .appearanceFooter:
+            return 3
         }
     }
 
@@ -57,6 +62,10 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
         case .liquidGlass:
             return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramStrings.liquidGlass, label: "", sectionId: self.section, style: .blocks, action: {
                 arguments.openLiquidGlass()
+            })
+        case .localFeatures:
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramLocalStrings.localFeatures, label: "", sectionId: self.section, style: .blocks, action: {
+                arguments.openLocalFeatures()
             })
         case .appearanceFooter:
             return ItemListTextItem(presentationData: presentationData, text: .plain(NetegramStrings.appearanceFooter), sectionId: self.section)
