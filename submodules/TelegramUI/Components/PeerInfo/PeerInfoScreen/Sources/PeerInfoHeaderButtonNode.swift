@@ -264,29 +264,38 @@ final class PeerInfoHeaderButtonNode: HighlightableButtonNode {
         transition.updateFrame(node: self.contentNode, frame: CGRect(origin: CGPoint(x: 0.0, y: size.height * 0.5 * (1.0 - fraction)), size: size))
         transition.updateAlpha(node: self.contentNode, alpha: fraction)
         
+        // Netegram: a circle needs a square background, not just a large corner radius —
+        // the button is wider than it is tall, so half the smaller side only gives a pill.
+        let isRoundButtons = UserDefaults.standard.bool(forKey: "netegram.look.roundProfileButtons")
         let backgroundY: CGFloat = size.height * (1.0 - fraction)
-        let backgroundFrame = CGRect(origin: CGPoint(x: 0.0, y: backgroundY), size: CGSize(width: size.width, height: max(0.0, size.height - backgroundY)))
+        var backgroundFrame = CGRect(origin: CGPoint(x: 0.0, y: backgroundY), size: CGSize(width: size.width, height: max(0.0, size.height - backgroundY)))
+        if isRoundButtons {
+            let side = min(backgroundFrame.width, backgroundFrame.height)
+            backgroundFrame = CGRect(
+                origin: CGPoint(x: floor((size.width - side) / 2.0), y: backgroundY + floor((backgroundFrame.height - side) / 2.0)),
+                size: CGSize(width: side, height: side)
+            )
+        }
         //transition.updateFrame(node: self.backgroundNode, frame: backgroundFrame)
         transition.updateFrame(view: self.backgroundView, frame: backgroundFrame)
         
         transition.updateSublayerTransformScale(node: self.contentNode, scale: 1.0 * fraction + 0.001 * (1.0 - fraction))
         
-        // Netegram: round buttons drop the caption and become a circle sized to the width,
-        // so the icon sits centred instead of above a label.
-        let isRound = UserDefaults.standard.bool(forKey: "netegram.look.roundProfileButtons")
+        let isRound = isRoundButtons
         if isRound {
-            transition.updateCornerRadius(layer: self.backgroundView.layer, cornerRadius: min(backgroundFrame.width, backgroundFrame.height) * 0.5)
+            transition.updateCornerRadius(layer: self.backgroundView.layer, cornerRadius: backgroundFrame.height * 0.5)
         } else {
             transition.updateCornerRadius(layer: self.backgroundView.layer, cornerRadius: min(16.0, backgroundFrame.height * 0.5))
         }
         //self.backgroundNode.update(size: backgroundFrame.size, cornerRadius: min(11.0, backgroundFrame.height * 0.5), transition: transition)
         //self.backgroundNode.updateColor(color: backgroundColor, transition: transition)
-        let iconY: CGFloat = isRound ? floor((size.height - iconSize.height) / 2.0) : 1.0
+        let iconY: CGFloat = isRound ? backgroundFrame.minY + floor((backgroundFrame.height - iconSize.height) / 2.0) : 1.0
         transition.updateFrame(node: self.iconNode, frame: CGRect(origin: CGPoint(x: floor((size.width - iconSize.width) / 2.0), y: iconY), size: iconSize))
         if let animatedIconView = self.animatedIcon?.view {
             transition.updateFrame(view: animatedIconView, frame: CGRect(origin: CGPoint(x: floor((size.width - iconSize.width) / 2.0), y: iconY), size: iconSize))
         }
-        transition.updateAlpha(node: self.textNode, alpha: isRound ? 0.0 : 1.0)
+        // Hidden outright rather than faded: alpha alone left the caption visible.
+        self.textNode.isHidden = isRound
         transition.updateFrameAdditiveToCenter(node: self.textNode, frame: CGRect(origin: CGPoint(x: floor((size.width - titleSize.width) / 2.0), y: size.height - titleSize.height - 9.0), size: titleSize))
         
         self.referenceNode.frame = self.containerNode.bounds
