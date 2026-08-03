@@ -790,6 +790,44 @@ public struct PresentationThemeBubbleShadow {
     }
 }
 
+/// Netegram: "Liquid Glass on messages" makes message bubbles translucent.
+///
+/// The key is mirrored in NetegramSettings — this module cannot import SettingsUI, which
+/// depends on it. Cached in memory because bubble colours are rebuilt during theme work.
+///
+/// Bubble artwork is rendered once and cached at startup, so the toggle takes effect after
+/// the app is restarted.
+private final class NetegramBubbleGlassPreference {
+    static let shared = NetegramBubbleGlassPreference()
+
+    private(set) var enabled: Bool = false
+
+    private init() {
+        self.reload()
+        NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification,
+            object: nil,
+            queue: .main,
+            using: { [weak self] _ in
+                self?.reload()
+            }
+        )
+    }
+
+    private func reload() {
+        self.enabled = UserDefaults.standard.bool(forKey: "netegram.liquidGlass.messages")
+    }
+}
+
+/// Keeps the theme's own hues and only lowers their opacity, so the palette stays intact
+/// and text keeps enough contrast to read over a wallpaper.
+func netegramTranslucentBubbleFill(_ fill: [UIColor]) -> [UIColor] {
+    guard NetegramBubbleGlassPreference.shared.enabled else {
+        return fill
+    }
+    return fill.map { $0.withAlphaComponent(0.45) }
+}
+
 public final class PresentationThemeBubbleColorComponents {
     public let fill: [UIColor]
     public let highlightedFill: UIColor
@@ -822,7 +860,10 @@ public final class PresentationThemeBubbleColorComponents {
         reactionInactiveMediaPlaceholder: UIColor,
         reactionActiveMediaPlaceholder: UIColor
     ) {
-        self.fill = fill
+        // Netegram: every bubble colour set is built through this initialiser, so applying
+        // the translucency here turns all bubbles to glass at once — incoming, outgoing,
+        // with and without wallpaper — without touching the drawing code.
+        self.fill = netegramTranslucentBubbleFill(fill)
         self.highlightedFill = highlightedFill
         self.stroke = stroke
         self.shadow = shadow
