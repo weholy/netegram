@@ -784,6 +784,49 @@ private extension StarsContext.State.Subscription {
     }
 }
 
+/// Netegram: device-local star balance override.
+///
+/// Keys mirror NetegramLocalFeatures — TelegramCore cannot import SettingsUI, which already
+/// depends on it. Values are cached in memory because the balance signal fires during list
+/// updates, and reading UserDefaults there would stall scrolling.
+///
+/// Display only: the server keeps the real balance, so nothing here can be spent.
+private let netegramLocalStarsEnabledKey = "netegram.local.starsEnabled"
+private let netegramLocalStarsAmountKey = "netegram.local.starsAmount"
+
+private final class NetegramLocalStarsState {
+    static let shared = NetegramLocalStarsState()
+
+    private(set) var enabled: Bool = false
+    private(set) var amount: Int64 = 0
+
+    private init() {
+        self.reload()
+        NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification,
+            object: nil,
+            queue: .main,
+            using: { [weak self] _ in
+                self?.reload()
+            }
+        )
+    }
+
+    private func reload() {
+        let defaults = UserDefaults.standard
+        self.enabled = defaults.bool(forKey: netegramLocalStarsEnabledKey)
+        self.amount = Int64(defaults.integer(forKey: netegramLocalStarsAmountKey))
+    }
+}
+
+func netegramSubstituteStarBalance(_ state: StarsContext.State?, isTon: Bool) -> StarsContext.State? {
+    guard !isTon, var substituted = state, NetegramLocalStarsState.shared.enabled else {
+        return state
+    }
+    substituted.balance = StarsAmount(value: NetegramLocalStarsState.shared.amount, nanos: 0)
+    return substituted
+}
+
 public final class StarsContext {
     public struct State: Equatable {
         public struct Transaction: Equatable {
@@ -1106,8 +1149,12 @@ public final class StarsContext {
         return Signal { subscriber in
             let disposable = MetaDisposable()
             self.impl.with { impl in
+                // Netegram: every consumer of the balance reads it through this signal, so
+                // substituting here covers the whole app in one place. TON balances are
+                // left alone — the override is about stars only.
+                let isTon = impl.ton
                 disposable.set(impl.state.start(next: { value in
-                    subscriber.putNext(value)
+                    subscriber.putNext(netegramSubstituteStarBalance(value, isTon: isTon))
                 }))
             }
             return disposable

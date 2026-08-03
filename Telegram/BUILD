@@ -312,7 +312,10 @@ filegroup(
 filegroup(
     name = "DefaultIcon",
     srcs = glob([
-        "Telegram-iOS/AppIcons.xcassets/BlueIcon.appiconset/*.png",
+        # This filegroup — not DefaultAppIcon.xcassets — is what becomes the app's primary
+        # icon, so it has to point at the Netegram artwork. BlueIcon keeps the original
+        # Telegram set and stays available as the alternate icon.
+        "Telegram-iOS/AppIcons.xcassets/NetegramIcon.appiconset/*.png",
     ]),
 )
 

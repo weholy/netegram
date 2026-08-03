@@ -60,20 +60,22 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
     func item(presentationData: ItemListPresentationData, arguments: Any) -> ListViewItem {
         let arguments = arguments as! NetegramSettingsControllerArguments
         switch self {
+        // On this screen the description belongs inside the cell, under the title. The
+        // screens these rows lead to keep their descriptions under the block instead.
         case .appearance:
-            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramStrings.appearance, label: "", sectionId: self.section, style: .blocks, action: {
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramStrings.appearance, label: "", additionalDetailLabel: "Логотип, иконки", sectionId: self.section, style: .blocks, action: {
                 arguments.openAppearance()
             })
         case .liquidGlass:
-            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramStrings.liquidGlass, label: "", sectionId: self.section, style: .blocks, action: {
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramStrings.liquidGlass, label: "", additionalDetailLabel: "Жидкое стекло в интерфейсе", sectionId: self.section, style: .blocks, action: {
                 arguments.openLiquidGlass()
             })
         case .localFeatures:
-            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramLocalStrings.localFeatures, label: "", sectionId: self.section, style: .blocks, action: {
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramLocalStrings.localFeatures, label: "", additionalDetailLabel: "Премиум, звёзды, эмодзи", sectionId: self.section, style: .blocks, action: {
                 arguments.openLocalFeatures()
             })
         case .announcement:
-            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramAnnouncementStrings.title, label: "", sectionId: self.section, style: .blocks, action: {
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramAnnouncementStrings.title, label: "", additionalDetailLabel: "Плашка в списке чатов", sectionId: self.section, style: .blocks, action: {
                 arguments.openAnnouncement()
             })
         case .appearanceFooter:
@@ -87,7 +89,6 @@ private func netegramSettingsEntries(isAnnouncementOwner: Bool) -> [NetegramSett
     if isAnnouncementOwner {
         entries.append(.announcement)
     }
-    entries.append(.appearanceFooter)
     return entries
 }
 
