@@ -247,6 +247,29 @@ public class GlassBackgroundView: UIView {
         }
     }
     
+    /// Caches the "Liquid Glass everywhere" preference so layout never touches UserDefaults.
+    private final class NetegramGlassPreference {
+        static let shared = NetegramGlassPreference()
+
+        private(set) var everywhere: Bool = false
+
+        private init() {
+            self.reload()
+            NotificationCenter.default.addObserver(
+                forName: UserDefaults.didChangeNotification,
+                object: nil,
+                queue: .main,
+                using: { [weak self] _ in
+                    self?.reload()
+                }
+            )
+        }
+
+        private func reload() {
+            self.everywhere = UserDefaults.standard.bool(forKey: "netegram.liquidGlass.everywhere")
+        }
+    }
+
     public struct TintColor: Equatable {
         public enum CustomStyle {
             case `default`
@@ -274,10 +297,11 @@ public class GlassBackgroundView: UIView {
         /// editing each one — and both the native and the legacy rendering paths below see
         /// the substituted kind.
         ///
-        /// Read straight from UserDefaults: this module cannot import SettingsUI, which
-        /// already depends on it. The key is mirrored in NetegramSettings.
+        /// The key is mirrored in NetegramSettings: this module cannot import SettingsUI,
+        /// which already depends on it. The value is cached in memory because TintColor is
+        /// constructed during layout, and touching UserDefaults there stalls scrolling.
         static func netegramResolved(_ kind: Kind) -> Kind {
-            if case .panel = kind, UserDefaults.standard.bool(forKey: "netegram.liquidGlass.everywhere") {
+            if case .panel = kind, NetegramGlassPreference.shared.everywhere {
                 return .clear
             }
             return kind

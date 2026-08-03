@@ -11,15 +11,43 @@ import Foundation
 private let netegramLocalPremiumKey = "netegram.local.premium"
 private let netegramLocalPremiumPeerIdKey = "netegram.local.premiumPeerId"
 
+/// Values are cached in memory because `isPremium` runs on every chat list row and every
+/// message layout — thousands of times per frame. Hitting UserDefaults there (and boxing an
+/// NSNumber on each call) stalls the UI badly enough to look like a hang.
+private final class NetegramLocalPremiumState {
+    static let shared = NetegramLocalPremiumState()
+
+    private var enabled: Bool = false
+    private var peerId: Int64 = 0
+
+    private init() {
+        self.reload()
+        NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification,
+            object: nil,
+            queue: .main,
+            using: { [weak self] _ in
+                self?.reload()
+            }
+        )
+    }
+
+    private func reload() {
+        let defaults = UserDefaults.standard
+        self.enabled = defaults.bool(forKey: netegramLocalPremiumKey)
+        self.peerId = (defaults.object(forKey: netegramLocalPremiumPeerIdKey) as? NSNumber)?.int64Value ?? 0
+    }
+
+    func applies(to peerId: PeerId) -> Bool {
+        guard self.enabled, self.peerId != 0 else {
+            return false
+        }
+        return peerId.toInt64() == self.peerId
+    }
+}
+
 func netegramLocalPremiumApplies(to peerId: PeerId) -> Bool {
-    let defaults = UserDefaults.standard
-    guard defaults.bool(forKey: netegramLocalPremiumKey) else {
-        return false
-    }
-    guard let storedPeerId = defaults.object(forKey: netegramLocalPremiumPeerIdKey) as? NSNumber else {
-        return false
-    }
-    return peerId.toInt64() == storedPeerId.int64Value
+    return NetegramLocalPremiumState.shared.applies(to: peerId)
 }
 import Postbox
 
