@@ -2708,7 +2708,25 @@ func peerInfoHeaderButtons(peer: EnginePeer?, cachedData: CachedPeerData?, isOpe
         result.append(.search)
         result.append(.more)
     }
-    
+
+    // Netegram: drop the buttons the user chose to hide. The header lays out only what it
+    // is given, so the remaining buttons close the gap on their own.
+    let hiddenButtons = UserDefaults.standard.stringArray(forKey: "netegram.look.hiddenProfileButtons") ?? []
+    if !hiddenButtons.isEmpty {
+        if hiddenButtons.contains("call") {
+            result.removeAll(where: { $0 == .call || $0 == .videoCall })
+        }
+        if hiddenButtons.contains("mute") {
+            result.removeAll(where: { $0 == .mute })
+        }
+        if hiddenButtons.contains("search") {
+            result.removeAll(where: { $0 == .search })
+        }
+        if hiddenButtons.contains("more") {
+            result.removeAll(where: { $0 == .more })
+        }
+    }
+
     return result
 }
 
