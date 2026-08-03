@@ -4,8 +4,9 @@ import AsyncDisplayKit
 import Display
 import SwiftSignalKit
 import TelegramPresentationData
-import LegacyComponents
 import ItemListUI
+import ComponentFlow
+import SliderComponent
 
 /// Title, current value and a slider in one block — the layout from the reference screenshot.
 ///
@@ -71,7 +72,9 @@ final class NetegramStarsSliderItemNode: ListViewItemNode {
 
     private let titleNode: TextNode
     private let valueNode: TextNode
-    private var sliderView: TGPhotoEditorSliderView?
+    /// SliderComponent is the project's current slider — the legacy TGPhotoEditorSliderView
+    /// still looks like the old system control.
+    private let sliderHost = ComponentView<Empty>()
 
     private var item: NetegramStarsSliderItem?
     private var layoutParams: ListViewItemLayoutParams?
@@ -98,40 +101,6 @@ final class NetegramStarsSliderItemNode: ListViewItemNode {
 
         self.addSubnode(self.titleNode)
         self.addSubnode(self.valueNode)
-    }
-
-    override func didLoad() {
-        super.didLoad()
-
-        let sliderView = TGPhotoEditorSliderView()
-        sliderView.enablePanHandling = true
-        sliderView.trackCornerRadius = 1.0
-        sliderView.lineSize = 2.0
-        sliderView.minimumValue = 0.0
-        sliderView.startValue = 0.0
-        sliderView.maximumValue = 100.0
-        sliderView.disablesInteractiveTransitionGestureRecognizer = true
-        if let item = self.item, let params = self.layoutParams {
-            sliderView.value = CGFloat(item.value) / CGFloat(max(1, item.maxValue)) * 100.0
-            sliderView.backgroundColor = item.theme.list.itemBlocksBackgroundColor
-            sliderView.backColor = item.theme.list.itemSwitchColors.frameColor
-            sliderView.trackColor = item.theme.list.itemAccentColor
-            sliderView.knobImage = PresentationResourcesItemList.knobImage(item.theme)
-
-            sliderView.frame = CGRect(origin: CGPoint(x: params.leftInset + 16.0, y: 38.0), size: CGSize(width: params.width - params.leftInset - params.rightInset - 32.0, height: 44.0))
-        }
-        self.view.addSubview(sliderView)
-        sliderView.addTarget(self, action: #selector(self.sliderValueChanged), for: .valueChanged)
-        self.sliderView = sliderView
-    }
-
-    @objc private func sliderValueChanged() {
-        guard let item = self.item, let sliderView = self.sliderView else {
-            return
-        }
-        // The slider works in percent; the caller wants an absolute star count.
-        let value = Int((sliderView.value / 100.0) * CGFloat(item.maxValue))
-        item.updated(value)
     }
 
     func asyncLayout() -> (_ item: NetegramStarsSliderItem, _ params: ListViewItemLayoutParams, _ neighbors: ItemListNeighbors) -> (ListViewItemNodeLayout, () -> Void) {
@@ -225,19 +194,33 @@ final class NetegramStarsSliderItemNode: ListViewItemNode {
                 strongSelf.titleNode.frame = CGRect(origin: CGPoint(x: leftInset, y: 12.0), size: titleLayout.size)
                 strongSelf.valueNode.frame = CGRect(origin: CGPoint(x: params.width - rightInset - valueLayout.size.width, y: 12.0), size: valueLayout.size)
 
-                if let sliderView = strongSelf.sliderView {
-                    sliderView.frame = CGRect(origin: CGPoint(x: leftInset, y: 38.0), size: CGSize(width: params.width - leftInset - rightInset, height: 44.0))
-                    sliderView.backgroundColor = item.theme.list.itemBlocksBackgroundColor
-                    sliderView.backColor = item.theme.list.itemSwitchColors.frameColor
-                    sliderView.trackColor = item.theme.list.itemAccentColor
-                    sliderView.knobImage = PresentationResourcesItemList.knobImage(item.theme)
-                    sliderView.isUserInteractionEnabled = item.enabled
-                    sliderView.alpha = item.enabled ? 1.0 : 0.4
-
-                    let percent = CGFloat(item.value) / CGFloat(max(1, item.maxValue)) * 100.0
-                    if abs(sliderView.value - percent) > 0.01 {
-                        sliderView.value = percent
+                let sliderSize = CGSize(width: params.width - leftInset - rightInset, height: 44.0)
+                let maxValue = max(1, item.maxValue)
+                let _ = strongSelf.sliderHost.update(
+                    transition: .immediate,
+                    component: AnyComponent(SliderComponent(
+                        content: .continuous(SliderComponent.Continuous(
+                            value: CGFloat(item.value) / CGFloat(maxValue),
+                            range: 0.0 ... 1.0,
+                            valueUpdated: { fraction in
+                                // The slider works in a 0...1 range; the caller wants an
+                                // absolute star count.
+                                item.updated(Int(fraction * CGFloat(maxValue)))
+                            }
+                        )),
+                        trackBackgroundColor: item.theme.list.itemSwitchColors.frameColor,
+                        trackForegroundColor: item.theme.list.itemAccentColor,
+                        isEnabled: item.enabled
+                    )),
+                    environment: {},
+                    containerSize: sliderSize
+                )
+                if let sliderView = strongSelf.sliderHost.view {
+                    if sliderView.superview == nil {
+                        strongSelf.view.addSubview(sliderView)
                     }
+                    sliderView.frame = CGRect(origin: CGPoint(x: leftInset, y: 38.0), size: sliderSize)
+                    sliderView.alpha = item.enabled ? 1.0 : 0.4
                 }
             })
         }
