@@ -10,13 +10,15 @@ import PresentationDataUtils
 import AccountContext
 
 private final class NetegramSettingsControllerArguments {
+    let openSearch: () -> Void
     let openAppearance: () -> Void
     let openLiquidGlass: () -> Void
     let openLocalFeatures: () -> Void
     let openBackground: () -> Void
     let openAnnouncement: () -> Void
 
-    init(openAppearance: @escaping () -> Void, openLiquidGlass: @escaping () -> Void, openLocalFeatures: @escaping () -> Void, openBackground: @escaping () -> Void, openAnnouncement: @escaping () -> Void) {
+    init(openSearch: @escaping () -> Void, openAppearance: @escaping () -> Void, openLiquidGlass: @escaping () -> Void, openLocalFeatures: @escaping () -> Void, openBackground: @escaping () -> Void, openAnnouncement: @escaping () -> Void) {
+        self.openSearch = openSearch
         self.openAppearance = openAppearance
         self.openLiquidGlass = openLiquidGlass
         self.openLocalFeatures = openLocalFeatures
@@ -25,11 +27,20 @@ private final class NetegramSettingsControllerArguments {
     }
 }
 
+// One section per row: rows sharing a section are drawn inside a single rounded block, so
+// each entry needs its own to stand apart.
 private enum NetegramSettingsSection: Int32 {
+    case header
+    case search
     case appearance
+    case liquidGlass
+    case localFeatures
+    case background
+    case announcement
 }
 
 private enum NetegramSettingsEntry: ItemListNodeEntry {
+    case search
     case appearance
     case liquidGlass
     case localFeatures
@@ -38,23 +49,38 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
     case appearanceFooter
 
     var section: ItemListSectionId {
-        return NetegramSettingsSection.appearance.rawValue
+        switch self {
+        case .search:
+            return NetegramSettingsSection.search.rawValue
+        case .appearance, .appearanceFooter:
+            return NetegramSettingsSection.appearance.rawValue
+        case .liquidGlass:
+            return NetegramSettingsSection.liquidGlass.rawValue
+        case .localFeatures:
+            return NetegramSettingsSection.localFeatures.rawValue
+        case .background:
+            return NetegramSettingsSection.background.rawValue
+        case .announcement:
+            return NetegramSettingsSection.announcement.rawValue
+        }
     }
 
     var stableId: Int32 {
         switch self {
-        case .appearance:
+        case .search:
             return 0
-        case .liquidGlass:
+        case .appearance:
             return 1
-        case .localFeatures:
+        case .liquidGlass:
             return 2
-        case .background:
+        case .localFeatures:
             return 3
-        case .announcement:
+        case .background:
             return 4
-        case .appearanceFooter:
+        case .announcement:
             return 5
+        case .appearanceFooter:
+            return 6
         }
     }
 
@@ -65,6 +91,10 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
     func item(presentationData: ItemListPresentationData, arguments: Any) -> ListViewItem {
         let arguments = arguments as! NetegramSettingsControllerArguments
         switch self {
+        case .search:
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramSearchStrings.title, label: "", additionalDetailLabel: "Найти функцию Netegram", sectionId: self.section, style: .blocks, action: {
+                arguments.openSearch()
+            })
         // On this screen the description belongs inside the cell, under the title. The
         // screens these rows lead to keep their descriptions under the block instead.
         case .appearance:
@@ -94,7 +124,7 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
 }
 
 private func netegramSettingsEntries(isAnnouncementOwner: Bool) -> [NetegramSettingsEntry] {
-    var entries: [NetegramSettingsEntry] = [.appearance, .liquidGlass, .localFeatures, .background]
+    var entries: [NetegramSettingsEntry] = [.search, .appearance, .liquidGlass, .localFeatures, .background]
     if isAnnouncementOwner {
         entries.append(.announcement)
     }
@@ -104,7 +134,9 @@ private func netegramSettingsEntries(isAnnouncementOwner: Bool) -> [NetegramSett
 public func netegramSettingsController(context: AccountContext) -> ViewController {
     var pushControllerImpl: ((ViewController) -> Void)?
 
-    let arguments = NetegramSettingsControllerArguments(openAppearance: {
+    let arguments = NetegramSettingsControllerArguments(openSearch: {
+        pushControllerImpl?(netegramSearchController(context: context))
+    }, openAppearance: {
         pushControllerImpl?(netegramAppearanceController(context: context))
     }, openLiquidGlass: {
         pushControllerImpl?(netegramLiquidGlassController(context: context))
