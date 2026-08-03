@@ -122,28 +122,30 @@ jobs:
             build \
             --configurationPath="build-system/ci-configuration.json" \
             --codesigningInformationPath=build-system/fake-codesigning \
-            --configuration=debug_sim_arm64 \
+            --configuration=release_arm64 \
             --buildNumber="$BUILD_NUMBER"
 
           OUTPUT_PATH="build/artifacts"
           rm -rf "$OUTPUT_PATH"
           mkdir -p "$OUTPUT_PATH"
           # bazel-out is a symlink, so find needs -L to descend into it at all.
-          APP_PATH=$(find -L bazel-out -maxdepth 6 -name '*.app' -type d 2>/dev/null | head -n 1)
-          echo "Found app bundle: ${APP_PATH:-<none>}"
-          if [ -n "$APP_PATH" ]; then
-            cp -R "$APP_PATH" "$OUTPUT_PATH/Netegram.app"
-            (cd "$OUTPUT_PATH" && zip -qr Netegram-simulator.zip Netegram.app && rm -rf Netegram.app)
+          IPA_PATH=$(find -L bazel-out -maxdepth 6 -name '*.ipa' -type f 2>/dev/null | head -n 1)
+          echo "Found ipa: ${IPA_PATH:-<none>}"
+          if [ -n "$IPA_PATH" ]; then
+            cp "$IPA_PATH" "$OUTPUT_PATH/Netegram.ipa"
           else
-            echo "::warning::No Telegram.app produced; nothing to upload."
+            echo "::warning::No .ipa produced. Tree under bazel-out/*/bin/Telegram:"
+            find -L bazel-out -maxdepth 6 -name '*.app' -o -maxdepth 6 -name '*.ipa' 2>/dev/null | head -n 20
           fi
 
       # actions/create-release and actions/upload-release-asset are archived by GitHub and
       # fail on current runners. Artifacts are enough and need no token handling.
-      - name: Upload simulator build
+      # Signed with the repository's stub certificates, so iOS will refuse to install it
+      # as-is. Re-sign with your own Apple ID (Sideloadly, AltStore) to sideload it.
+      - name: Upload IPA
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Netegram-${{ env.APP_VERSION }}-${{ env.BUILD_NUMBER }}-simulator
-          path: /Users/Shared/netegram/build/artifacts/Netegram-simulator.zip
+          name: Netegram-${{ env.APP_VERSION }}-${{ env.BUILD_NUMBER }}-ipa
+          path: /Users/Shared/netegram/build/artifacts/Netegram.ipa
           if-no-files-found: warn
