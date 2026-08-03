@@ -18,6 +18,9 @@ public enum NetegramLocalStrings {
     public static let premiumEmojiTitle = "Премиум эмодзи в ботах"
     public static let premiumEmojiFooter = "Для разработчиков, делает локальные премиум эмодзи в ботах."
     public static let premiumEmojiRequiresPremium = "Сначала включите «Локальный премиум»."
+    public static let localUsernameTitle = "Локальный юзернейм"
+    public static let localUsernameFooter = "Изменяет юзернейм визуально."
+    public static let localUsernameField = "Юзернейм"
     public static let starsHeader = "Звёзды Telegram"
     public static let changeStarBalance = "Изменить баланс звёзд"
     public static let starsAmount = "Количество звёзд"
@@ -30,6 +33,7 @@ private let localPremiumPeerIdKey = "netegram.local.premiumPeerId"
 private let premiumEmojiInBotsKey = "netegram.local.premiumEmojiInBots"
 private let localStarsEnabledKey = "netegram.local.starsEnabled"
 private let localStarsAmountKey = "netegram.local.starsAmount"
+private let localUsernameEnabledKey = "netegram.local.usernameEnabled"
 
 /// Upper bound of the star amount slider.
 public let netegramMaxLocalStars = 1_000_000
@@ -42,12 +46,16 @@ public struct NetegramLocalFeatureSettings: Equatable {
     public let premiumEmojiInBots: Bool
     public let starsEnabled: Bool
     public let starsAmount: Int
+    public let usernameEnabled: Bool
+    public let username: String
 
-    public init(premium: Bool, premiumEmojiInBots: Bool, starsEnabled: Bool, starsAmount: Int) {
+    public init(premium: Bool, premiumEmojiInBots: Bool, starsEnabled: Bool, starsAmount: Int, usernameEnabled: Bool, username: String) {
         self.premium = premium
         self.premiumEmojiInBots = premiumEmojiInBots
         self.starsEnabled = starsEnabled
         self.starsAmount = starsAmount
+        self.usernameEnabled = usernameEnabled
+        self.username = username
     }
 }
 
@@ -65,14 +73,38 @@ public final class NetegramLocalFeatures {
         self.promise = ValuePromise(NetegramLocalFeatures.current(), ignoreRepeated: true)
     }
 
-    public static func current() -> NetegramLocalFeatureSettings {
+    public static func current(ownPeerId: PeerId? = nil) -> NetegramLocalFeatureSettings {
         let defaults = UserDefaults.standard
+        var username = ""
+        if let ownPeerId, let stored = netegramCurrentLocalUsername(for: ownPeerId) {
+            username = stored
+        }
         return NetegramLocalFeatureSettings(
             premium: defaults.bool(forKey: localPremiumKey),
             premiumEmojiInBots: defaults.bool(forKey: premiumEmojiInBotsKey),
             starsEnabled: defaults.bool(forKey: localStarsEnabledKey),
-            starsAmount: defaults.integer(forKey: localStarsAmountKey)
+            starsAmount: defaults.integer(forKey: localStarsAmountKey),
+            usernameEnabled: defaults.bool(forKey: localUsernameEnabledKey),
+            username: username
         )
+    }
+
+    /// The screen re-reads with the signed-in peer id so the stored override can be shown.
+    public func refresh(ownPeerId: PeerId) {
+        self.promise.set(NetegramLocalFeatures.current(ownPeerId: ownPeerId))
+    }
+
+    public func setUsernameEnabled(_ value: Bool, ownPeerId: PeerId) {
+        UserDefaults.standard.set(value, forKey: localUsernameEnabledKey)
+        if !value {
+            netegramSetLocalUsername(nil, for: ownPeerId)
+        }
+        self.refresh(ownPeerId: ownPeerId)
+    }
+
+    public func setUsername(_ value: String, ownPeerId: PeerId) {
+        netegramSetLocalUsername(value, for: ownPeerId)
+        self.refresh(ownPeerId: ownPeerId)
     }
 
     public var signal: Signal<NetegramLocalFeatureSettings, NoError> {
@@ -134,16 +166,22 @@ public final class NetegramLocalFeatures {
 // MARK: - Local features screen
 
 private final class NetegramLocalFeaturesArguments {
+    let context: AccountContext
     let updatePremium: (Bool) -> Void
     let updatePremiumEmoji: (Bool) -> Void
     let openStars: () -> Void
     let premiumRequired: () -> Void
+    let updateUsernameEnabled: (Bool) -> Void
+    let updateUsername: (String) -> Void
 
-    init(updatePremium: @escaping (Bool) -> Void, updatePremiumEmoji: @escaping (Bool) -> Void, openStars: @escaping () -> Void, premiumRequired: @escaping () -> Void) {
+    init(context: AccountContext, updatePremium: @escaping (Bool) -> Void, updatePremiumEmoji: @escaping (Bool) -> Void, openStars: @escaping () -> Void, premiumRequired: @escaping () -> Void, updateUsernameEnabled: @escaping (Bool) -> Void, updateUsername: @escaping (String) -> Void) {
+        self.context = context
         self.updatePremium = updatePremium
         self.updatePremiumEmoji = updatePremiumEmoji
         self.openStars = openStars
         self.premiumRequired = premiumRequired
+        self.updateUsernameEnabled = updateUsernameEnabled
+        self.updateUsername = updateUsername
     }
 }
 
@@ -151,6 +189,8 @@ private enum NetegramLocalFeaturesSection: Int32 {
     case premium
     case stars
     case premiumEmoji
+    case username
+    case usernameInput
 }
 
 private enum NetegramLocalFeaturesEntry: ItemListNodeEntry {
@@ -159,6 +199,9 @@ private enum NetegramLocalFeaturesEntry: ItemListNodeEntry {
     case stars
     case premiumEmoji(value: Bool, enabled: Bool)
     case premiumEmojiFooter
+    case localUsername(Bool)
+    case localUsernameInput(String)
+    case localUsernameFooter
 
     var section: ItemListSectionId {
         switch self {
@@ -168,6 +211,11 @@ private enum NetegramLocalFeaturesEntry: ItemListNodeEntry {
             return NetegramLocalFeaturesSection.stars.rawValue
         case .premiumEmoji, .premiumEmojiFooter:
             return NetegramLocalFeaturesSection.premiumEmoji.rawValue
+        case .localUsername, .localUsernameFooter:
+            return NetegramLocalFeaturesSection.username.rawValue
+        // Its own section so the field appears as a separate block right under the toggle.
+        case .localUsernameInput:
+            return NetegramLocalFeaturesSection.usernameInput.rawValue
         }
     }
 
@@ -179,10 +227,16 @@ private enum NetegramLocalFeaturesEntry: ItemListNodeEntry {
             return 1
         case .stars:
             return 2
-        case .premiumEmoji:
+        case .localUsername:
             return 3
-        case .premiumEmojiFooter:
+        case .localUsernameInput:
             return 4
+        case .localUsernameFooter:
+            return 5
+        case .premiumEmoji:
+            return 6
+        case .premiumEmojiFooter:
+            return 7
         }
     }
 
@@ -211,6 +265,25 @@ private enum NetegramLocalFeaturesEntry: ItemListNodeEntry {
             })
         case .premiumEmojiFooter:
             return ItemListTextItem(presentationData: presentationData, text: .plain(NetegramLocalStrings.premiumEmojiFooter), sectionId: self.section)
+        case let .localUsername(value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: NetegramLocalStrings.localUsernameTitle, value: value, sectionId: self.section, style: .blocks, updated: { value in
+                arguments.updateUsernameEnabled(value)
+            })
+        case let .localUsernameInput(value):
+            return ItemListSingleLineInputItem(
+                context: arguments.context,
+                presentationData: presentationData,
+                title: NSAttributedString(string: ""),
+                text: value,
+                placeholder: NetegramLocalStrings.localUsernameField,
+                sectionId: self.section,
+                textUpdated: { value in
+                    arguments.updateUsername(value)
+                },
+                action: {}
+            )
+        case .localUsernameFooter:
+            return ItemListTextItem(presentationData: presentationData, text: .plain(NetegramLocalStrings.localUsernameFooter), sectionId: self.section)
         }
     }
 }
@@ -219,7 +292,7 @@ public func netegramLocalFeaturesController(context: AccountContext) -> ViewCont
     var pushControllerImpl: ((ViewController) -> Void)?
     var presentWarningImpl: (() -> Void)?
 
-    let arguments = NetegramLocalFeaturesArguments(updatePremium: { value in
+    let arguments = NetegramLocalFeaturesArguments(context: context, updatePremium: { value in
         NetegramLocalFeatures.shared.setPremium(value, ownPeerId: context.account.peerId.toInt64())
     }, updatePremiumEmoji: { value in
         NetegramLocalFeatures.shared.setPremiumEmojiInBots(value)
@@ -227,6 +300,10 @@ public func netegramLocalFeaturesController(context: AccountContext) -> ViewCont
         pushControllerImpl?(netegramLocalStarsController(context: context))
     }, premiumRequired: {
         presentWarningImpl?()
+    }, updateUsernameEnabled: { value in
+        NetegramLocalFeatures.shared.setUsernameEnabled(value, ownPeerId: context.account.peerId)
+    }, updateUsername: { value in
+        NetegramLocalFeatures.shared.setUsername(value, ownPeerId: context.account.peerId)
     })
 
     let signal = combineLatest(queue: .mainQueue(),
@@ -235,13 +312,19 @@ public func netegramLocalFeaturesController(context: AccountContext) -> ViewCont
     )
     |> deliverOnMainQueue
     |> map { presentationData, settings -> (ItemListControllerState, (ItemListNodeState, Any)) in
-        let entries: [NetegramLocalFeaturesEntry] = [
+        var entries: [NetegramLocalFeaturesEntry] = [
             .premium(settings.premium),
             .premiumFooter,
             .stars,
-            .premiumEmoji(value: settings.premiumEmojiInBots, enabled: settings.premium),
-            .premiumEmojiFooter
+            .localUsername(settings.usernameEnabled)
         ]
+        // The field sits directly under its toggle rather than at the end of the screen.
+        if settings.usernameEnabled {
+            entries.append(.localUsernameInput(settings.username))
+        }
+        entries.append(.localUsernameFooter)
+        entries.append(.premiumEmoji(value: settings.premiumEmojiInBots, enabled: settings.premium))
+        entries.append(.premiumEmojiFooter)
 
         let controllerState = ItemListControllerState(
             presentationData: ItemListPresentationData(presentationData),

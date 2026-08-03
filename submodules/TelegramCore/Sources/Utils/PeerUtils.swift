@@ -49,6 +49,65 @@ private final class NetegramLocalPremiumState {
 func netegramLocalPremiumApplies(to peerId: PeerId) -> Bool {
     return NetegramLocalPremiumState.shared.applies(to: peerId)
 }
+
+/// Per-peer local username overrides, stored as a peer id -> username dictionary.
+///
+/// Cached in memory for the same reason as the premium flag: `addressName` is read while
+/// laying out every chat list row, so touching UserDefaults there would stall scrolling.
+private let netegramLocalUsernamesKey = "netegram.local.usernames"
+
+private final class NetegramLocalUsernameState {
+    static let shared = NetegramLocalUsernameState()
+
+    private var overrides: [String: String] = [:]
+
+    private init() {
+        self.reload()
+        NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification,
+            object: nil,
+            queue: .main,
+            using: { [weak self] _ in
+                self?.reload()
+            }
+        )
+    }
+
+    private func reload() {
+        self.overrides = (UserDefaults.standard.dictionary(forKey: netegramLocalUsernamesKey) as? [String: String]) ?? [:]
+    }
+
+    func username(for peerId: PeerId) -> String? {
+        guard !self.overrides.isEmpty else {
+            return nil
+        }
+        guard let value = self.overrides["\(peerId.toInt64())"], !value.isEmpty else {
+            return nil
+        }
+        return value
+    }
+}
+
+func netegramLocalUsername(for peerId: PeerId) -> String? {
+    return NetegramLocalUsernameState.shared.username(for: peerId)
+}
+
+/// Writes a local username override, or clears it when `username` is nil or empty.
+public func netegramSetLocalUsername(_ username: String?, for peerId: PeerId) {
+    var overrides = (UserDefaults.standard.dictionary(forKey: netegramLocalUsernamesKey) as? [String: String]) ?? [:]
+    let key = "\(peerId.toInt64())"
+    if let username, !username.isEmpty {
+        overrides[key] = username.hasPrefix("@") ? String(username.dropFirst()) : username
+    } else {
+        overrides.removeValue(forKey: key)
+    }
+    UserDefaults.standard.set(overrides, forKey: netegramLocalUsernamesKey)
+}
+
+/// Current local override for a peer, for prefilling the editor.
+public func netegramCurrentLocalUsername(for peerId: PeerId) -> String? {
+    return netegramLocalUsername(for: peerId)
+}
 import Postbox
 
 public let anonymousSavedMessagesId: Int64 = 2666000
@@ -100,6 +159,12 @@ public extension Peer {
     var addressName: String? {
         switch self {
         case let user as TelegramUser:
+            // Netegram: a locally overridden username wins. Every part of the client reads
+            // names through this accessor, so one substitution covers the profile, the chat
+            // list, chat headers, mentions and search at once.
+            if let local = netegramLocalUsername(for: user.id) {
+                return local
+            }
             return user.usernames.first(where: { $0.isActive }).map { $0.username } ?? user.username
         case _ as TelegramGroup:
             return nil
