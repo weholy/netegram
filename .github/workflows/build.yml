@@ -105,11 +105,16 @@ jobs:
           # device build asks for, so a device IPA needs real provisioning profiles issued
           # for this bundle id. This still compiles every line of Swift, which is what CI
           # is here to verify.
+          # --disableProvisioningProfiles does not replace the codesigning source: the
+          # parser still requires one of --gitCodesigningRepository /
+          # --codesigningInformationPath / --xcodeManagedCodesigning. The two go together.
+          python3 build-system/Make/ImportCertificates.py --path build-system/fake-codesigning/certs
           python3 -u build-system/Make/Make.py \
             --bazelUserRoot="$BAZEL_USER_ROOT" \
             --cacheDir="$HOME/.cache/netegram-bazel" \
             build \
             --configurationPath="build-system/ci-configuration.json" \
+            --codesigningInformationPath=build-system/fake-codesigning \
             --disableProvisioningProfiles \
             --configuration=debug_sim_arm64 \
             --buildNumber="$BUILD_NUMBER"
