@@ -80,6 +80,8 @@ public func netegramSettingsController(context: AccountContext) -> ViewControlle
         pushControllerImpl?(netegramAppearanceController(context: context))
     }, openLiquidGlass: {
         pushControllerImpl?(netegramLiquidGlassController(context: context))
+    }, openLocalFeatures: {
+        pushControllerImpl?(netegramLocalFeaturesController(context: context))
     })
 
     let signal = context.sharedContext.presentationData
@@ -94,7 +96,7 @@ public func netegramSettingsController(context: AccountContext) -> ViewControlle
         )
         let listState = ItemListNodeState(
             presentationData: ItemListPresentationData(presentationData),
-            entries: [.appearance, .liquidGlass, .appearanceFooter] as [NetegramSettingsEntry],
+            entries: [.appearance, .liquidGlass, .localFeatures, .appearanceFooter] as [NetegramSettingsEntry],
             style: .blocks,
             animateChanges: false
         )

@@ -8,6 +8,7 @@ import TelegramUIPreferences
 import ItemListUI
 import PresentationDataUtils
 import AccountContext
+import PromptUI
 
 public enum NetegramLocalStrings {
     public static let localFeatures = "Локальные функции"
@@ -384,20 +385,19 @@ public func netegramLocalStarsController(context: AccountContext) -> ViewControl
         guard let controller else {
             return
         }
-        let presentationData = context.sharedContext.currentPresentationData.with { $0 }
-        let promptController = promptController(
-            sharedContext: context.sharedContext,
-            updatedPresentationData: nil,
+        // Named `inputController`, not `promptController`: a local of that name would
+        // shadow the function being called.
+        let inputController = promptController(
+            context: context,
             text: NetegramLocalStrings.starsAmount,
             value: "\(current)",
             apply: { value in
-                if let value, let amount = Int(value.trimmingCharacters(in: .whitespaces)) {
+                if let value, let amount = Int(value.trimmingCharacters(in: CharacterSet.whitespaces)) {
                     NetegramLocalFeatures.shared.setStarsAmount(amount)
                 }
             }
         )
-        let _ = presentationData
-        controller.present(promptController, in: .window(.root))
+        controller.present(inputController, in: .window(.root))
     }
     return controller
 }

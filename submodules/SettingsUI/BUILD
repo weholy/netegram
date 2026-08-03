@@ -49,6 +49,7 @@ swift_library(
         "//submodules/NotificationSoundSelectionUI:NotificationSoundSelectionUI",
         "//submodules/OverlayStatusController:OverlayStatusController",
         "//submodules/PasswordSetupUI:PasswordSetupUI",
+        "//submodules/PromptUI:PromptUI",
         "//submodules/PassportUI:PassportUI",
         "//submodules/PasscodeUI:PasscodeUI",
         "//submodules/PeerAvatarGalleryUI:PeerAvatarGalleryUI",
