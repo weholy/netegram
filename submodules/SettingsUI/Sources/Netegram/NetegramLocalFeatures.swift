@@ -367,22 +367,26 @@ public func netegramLocalFeaturesController(context: AccountContext) -> ViewCont
 private final class NetegramLocalStarsArguments {
     let updateEnabled: (Bool) -> Void
     let updateAmount: (Int) -> Void
+    let setAmount: (Int) -> Void
 
-    init(updateEnabled: @escaping (Bool) -> Void, updateAmount: @escaping (Int) -> Void) {
+    init(updateEnabled: @escaping (Bool) -> Void, updateAmount: @escaping (Int) -> Void, setAmount: @escaping (Int) -> Void) {
         self.updateEnabled = updateEnabled
         self.updateAmount = updateAmount
+        self.setAmount = setAmount
     }
 }
 
 private enum NetegramLocalStarsSection: Int32 {
     case toggle
     case amount
+    case customValue
 }
 
 private enum NetegramLocalStarsEntry: ItemListNodeEntry {
     case header
     case toggle(Bool)
     case amount(value: Int, enabled: Bool)
+    case customValue(value: Int, enabled: Bool)
 
     var section: ItemListSectionId {
         switch self {
@@ -390,6 +394,8 @@ private enum NetegramLocalStarsEntry: ItemListNodeEntry {
             return NetegramLocalStarsSection.toggle.rawValue
         case .amount:
             return NetegramLocalStarsSection.amount.rawValue
+        case .customValue:
+            return NetegramLocalStarsSection.customValue.rawValue
         }
     }
 
@@ -401,6 +407,8 @@ private enum NetegramLocalStarsEntry: ItemListNodeEntry {
             return 1
         case .amount:
             return 2
+        case .customValue:
+            return 3
         }
     }
 
@@ -418,7 +426,11 @@ private enum NetegramLocalStarsEntry: ItemListNodeEntry {
                 arguments.updateEnabled(value)
             })
         case let .amount(value, enabled):
-            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramLocalStrings.starsAmount, enabled: enabled, label: "\(value)", sectionId: self.section, style: .blocks, action: {
+            return NetegramStarsSliderItem(theme: presentationData.theme, title: NetegramLocalStrings.starsAmount, value: value, maxValue: netegramMaxLocalStars, enabled: enabled, sectionId: self.section, updated: { value in
+                arguments.setAmount(value)
+            })
+        case let .customValue(value, enabled):
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramLocalStrings.starsCustomValue, enabled: enabled, label: "\(value) ⭐", sectionId: self.section, style: .blocks, action: {
                 arguments.updateAmount(value)
             })
         }
@@ -432,6 +444,8 @@ public func netegramLocalStarsController(context: AccountContext) -> ViewControl
         NetegramLocalFeatures.shared.setStarsEnabled(value)
     }, updateAmount: { current in
         presentAmountInputImpl?(current)
+    }, setAmount: { value in
+        NetegramLocalFeatures.shared.setStarsAmount(value)
     })
 
     let signal = combineLatest(queue: .mainQueue(),
@@ -443,7 +457,8 @@ public func netegramLocalStarsController(context: AccountContext) -> ViewControl
         let entries: [NetegramLocalStarsEntry] = [
             .header,
             .toggle(settings.starsEnabled),
-            .amount(value: settings.starsAmount, enabled: settings.starsEnabled)
+            .amount(value: settings.starsAmount, enabled: settings.starsEnabled),
+            .customValue(value: settings.starsAmount, enabled: settings.starsEnabled)
         ]
 
         let controllerState = ItemListControllerState(
