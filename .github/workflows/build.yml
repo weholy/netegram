@@ -47,7 +47,7 @@ jobs:
             "bundle_id": "ph.telegra.Telegraph",
             "api_id": "$API_ID_CLEAN",
             "api_hash": "$API_HASH_CLEAN",
-            "team_id": "0123456789",
+            "team_id": "C67CF9S4VU",
             "app_center_id": "0",
             "is_internal_build": "true",
             "is_appstore_build": "false",
@@ -107,9 +107,14 @@ jobs:
           # is here to verify.
           # Telegram/BUILD references a .mobileprovision per app extension, so the
           # provisioning package must be populated — --xcodeManagedCodesigning leaves it
-          # empty and the load phase fails. The bundled fake profiles are issued for
-          # ph.telegra.Telegraph, which is why the CI configuration above has to use that
-          # bundle id: any other value makes their entitlements fail validation.
+          # empty and the load phase fails.
+          #
+          # BuildConfiguration.py matches profiles with
+          #     profile_name.startswith(team_id + '.' + bundle_id)
+          # so the configuration above must carry BOTH the team id and the bundle id the
+          # bundled fake profiles were issued for. Any mismatch means no profile is found
+          # at all, which surfaces as the misleading "no valid aps-environment" error.
+          # A build for a real device needs your own profiles, team id and bundle id.
           python3 build-system/Make/ImportCertificates.py --path build-system/fake-codesigning/certs
           python3 -u build-system/Make/Make.py \
             --bazelUserRoot="$BAZEL_USER_ROOT" \
