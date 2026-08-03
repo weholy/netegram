@@ -1,4 +1,26 @@
 import Foundation
+
+/// Netegram: device-local premium override.
+///
+/// Read straight from UserDefaults because TelegramCore cannot import SettingsUI, which
+/// already depends on it. Keys are mirrored in NetegramLocalFeatures.
+///
+/// Scoped to the signed-in account on purpose: applying it to every TelegramUser would
+/// paint the whole contact list premium. Display-only — the server is unchanged, so nobody
+/// else sees this account as premium and no server-enforced limit is lifted.
+private let netegramLocalPremiumKey = "netegram.local.premium"
+private let netegramLocalPremiumPeerIdKey = "netegram.local.premiumPeerId"
+
+func netegramLocalPremiumApplies(to peerId: PeerId) -> Bool {
+    let defaults = UserDefaults.standard
+    guard defaults.bool(forKey: netegramLocalPremiumKey) else {
+        return false
+    }
+    guard let storedPeerId = defaults.object(forKey: netegramLocalPremiumPeerIdKey) as? NSNumber else {
+        return false
+    }
+    return peerId.toInt64() == storedPeerId.int64Value
+}
 import Postbox
 
 public let anonymousSavedMessagesId: Int64 = 2666000
@@ -227,7 +249,10 @@ public extension Peer {
     var isPremium: Bool {
         switch self {
         case let user as TelegramUser:
-            return user.flags.contains(.isPremium)
+            if user.flags.contains(.isPremium) {
+                return true
+            }
+            return netegramLocalPremiumApplies(to: user.id)
         default:
             return false
         }

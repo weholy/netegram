@@ -24,6 +24,8 @@ public enum NetegramLocalStrings {
 }
 
 private let localPremiumKey = "netegram.local.premium"
+/// Mirrored in TelegramCore's PeerUtils, which cannot import this module.
+private let localPremiumPeerIdKey = "netegram.local.premiumPeerId"
 private let premiumEmojiInBotsKey = "netegram.local.premiumEmojiInBots"
 private let localStarsEnabledKey = "netegram.local.starsEnabled"
 private let localStarsAmountKey = "netegram.local.starsAmount"
@@ -95,8 +97,11 @@ public final class NetegramLocalFeatures {
         return UserDefaults.standard.integer(forKey: localStarsAmountKey)
     }
 
-    public func setPremium(_ value: Bool) {
+    /// `ownPeerId` scopes the override to the signed-in account: PeerUtils compares against
+    /// it so only this user is painted premium, not everyone in the contact list.
+    public func setPremium(_ value: Bool, ownPeerId: Int64) {
         UserDefaults.standard.set(value, forKey: localPremiumKey)
+        UserDefaults.standard.set(NSNumber(value: ownPeerId), forKey: localPremiumPeerIdKey)
         // Leaving the dependent toggle on while its prerequisite is off would show an
         // enabled switch that does nothing.
         if !value {
@@ -214,7 +219,7 @@ public func netegramLocalFeaturesController(context: AccountContext) -> ViewCont
     var presentWarningImpl: (() -> Void)?
 
     let arguments = NetegramLocalFeaturesArguments(updatePremium: { value in
-        NetegramLocalFeatures.shared.setPremium(value)
+        NetegramLocalFeatures.shared.setPremium(value, ownPeerId: context.account.peerId.toInt64())
     }, updatePremiumEmoji: { value in
         NetegramLocalFeatures.shared.setPremiumEmojiInBots(value)
     }, openStars: {
