@@ -94,7 +94,7 @@ final class NetegramStarsSliderItemNode: ListViewItemNode {
         self.valueNode = TextNode()
         self.valueNode.isUserInteractionEnabled = false
 
-        super.init(layerBacked: false, dynamicBounce: false)
+        super.init(layerBacked: false)
 
         self.addSubnode(self.titleNode)
         self.addSubnode(self.valueNode)
