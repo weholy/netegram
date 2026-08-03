@@ -1491,7 +1491,11 @@ private final class LensTransitionContainerEffectViewImpl: UIView, LensTransitio
         }
 
         private func reload() {
-            self.everywhere = UserDefaults.standard.bool(forKey: "netegram.liquidGlass.everywhere")
+            let defaults = UserDefaults.standard
+            // The redesigned menu is meant to sit on clear glass, so it turns the blur off
+            // on its own — without also requiring "Liquid Glass everywhere".
+            self.everywhere = defaults.bool(forKey: "netegram.liquidGlass.everywhere")
+                || defaults.bool(forKey: "netegram.look.contextRedesign")
         }
     }
 
