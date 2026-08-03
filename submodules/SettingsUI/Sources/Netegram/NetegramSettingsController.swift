@@ -11,14 +11,16 @@ import AccountContext
 
 private final class NetegramSettingsControllerArguments {
     let openSearch: () -> Void
+    let openLook: () -> Void
     let openAppearance: () -> Void
     let openLiquidGlass: () -> Void
     let openLocalFeatures: () -> Void
     let openBackground: () -> Void
     let openAnnouncement: () -> Void
 
-    init(openSearch: @escaping () -> Void, openAppearance: @escaping () -> Void, openLiquidGlass: @escaping () -> Void, openLocalFeatures: @escaping () -> Void, openBackground: @escaping () -> Void, openAnnouncement: @escaping () -> Void) {
+    init(openSearch: @escaping () -> Void, openLook: @escaping () -> Void, openAppearance: @escaping () -> Void, openLiquidGlass: @escaping () -> Void, openLocalFeatures: @escaping () -> Void, openBackground: @escaping () -> Void, openAnnouncement: @escaping () -> Void) {
         self.openSearch = openSearch
+        self.openLook = openLook
         self.openAppearance = openAppearance
         self.openLiquidGlass = openLiquidGlass
         self.openLocalFeatures = openLocalFeatures
@@ -32,6 +34,7 @@ private final class NetegramSettingsControllerArguments {
 private enum NetegramSettingsSection: Int32 {
     case header
     case search
+    case look
     case appearance
     case liquidGlass
     case localFeatures
@@ -41,6 +44,7 @@ private enum NetegramSettingsSection: Int32 {
 
 private enum NetegramSettingsEntry: ItemListNodeEntry {
     case search
+    case look
     case appearance
     case liquidGlass
     case localFeatures
@@ -52,6 +56,8 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
         switch self {
         case .search:
             return NetegramSettingsSection.search.rawValue
+        case .look:
+            return NetegramSettingsSection.look.rawValue
         case .appearance, .appearanceFooter:
             return NetegramSettingsSection.appearance.rawValue
         case .liquidGlass:
@@ -69,10 +75,12 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
         switch self {
         case .search:
             return 0
-        case .appearance:
+        case .look:
             return 1
-        case .liquidGlass:
+        case .appearance:
             return 2
+        case .liquidGlass:
+            return 3
         case .localFeatures:
             return 3
         case .background:
@@ -94,6 +102,10 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
         case .search:
             return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramSearchStrings.title, label: "", additionalDetailLabel: "Найти функцию Netegram", sectionId: self.section, style: .blocks, action: {
                 arguments.openSearch()
+            })
+        case .look:
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramLookStrings.title, label: "", additionalDetailLabel: NetegramLookStrings.subtitle, sectionId: self.section, style: .blocks, action: {
+                arguments.openLook()
             })
         // On this screen the description belongs inside the cell, under the title. The
         // screens these rows lead to keep their descriptions under the block instead.
@@ -124,7 +136,7 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
 }
 
 private func netegramSettingsEntries(isAnnouncementOwner: Bool) -> [NetegramSettingsEntry] {
-    var entries: [NetegramSettingsEntry] = [.search, .appearance, .liquidGlass, .localFeatures, .background]
+    var entries: [NetegramSettingsEntry] = [.search, .look, .appearance, .liquidGlass, .localFeatures, .background]
     if isAnnouncementOwner {
         entries.append(.announcement)
     }
@@ -136,6 +148,8 @@ public func netegramSettingsController(context: AccountContext) -> ViewControlle
 
     let arguments = NetegramSettingsControllerArguments(openSearch: {
         pushControllerImpl?(netegramSearchController(context: context))
+    }, openLook: {
+        pushControllerImpl?(netegramLookController(context: context))
     }, openAppearance: {
         pushControllerImpl?(netegramAppearanceController(context: context))
     }, openLiquidGlass: {
