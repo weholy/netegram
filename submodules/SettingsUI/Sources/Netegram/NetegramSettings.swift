@@ -14,6 +14,13 @@ public enum NetegramStrings {
     public static let replaceLogoFooter = "Заменяет логотип на оригинальный Telegram."
     public static let customIconsTitle = "Кастомные иконки в настройках"
     public static let customIconsFooter = "Заменяет на кастомные иконки."
+    public static let liquidGlass = "Liquid Glass"
+    public static let liquidGlassMessagesTitle = "Liquid Glass на сообщения"
+    public static let liquidGlassMessagesFooter = "Делает пузырьки сообщений прозрачными."
+    public static let liquidGlassInlineTitle = "Liquid Glass на Inline-кнопки в ботах"
+    public static let liquidGlassInlineFooter = "Делает кнопки под сообщениями ботов прозрачными."
+    public static let liquidGlassEverywhereTitle = "Liquid Glass повсюду"
+    public static let liquidGlassEverywhereFooter = "Панели, шапки, кнопки и блоки по всему приложению."
 }
 
 /// The app icon baked into the bundle as the primary icon (Netegram artwork).
@@ -26,6 +33,10 @@ private let useOriginalTelegramLogoKey = "netegram.useOriginalTelegramLogo"
 /// Kept in sync with the key read by PresentationResourcesSettings, which cannot import
 /// this module (SettingsUI already depends on TelegramPresentationData).
 private let customSettingsIconsKey = "netegram.customSettingsIcons"
+private let liquidGlassMessagesKey = "netegram.liquidGlass.messages"
+private let liquidGlassInlineButtonsKey = "netegram.liquidGlass.inlineButtons"
+/// Mirrored in GlassBackgroundComponent, which resolves .panel to .clear when this is set.
+private let liquidGlassEverywhereKey = "netegram.liquidGlass.everywhere"
 
 /// Local, device-only branding preferences.
 ///
@@ -37,10 +48,13 @@ public final class NetegramSettings {
 
     private let valuePromise: ValuePromise<Bool>
     private let customIconsPromise: ValuePromise<Bool>
+    private let liquidGlassPromise: ValuePromise<(messages: Bool, inlineButtons: Bool, everywhere: Bool)>
 
     private init() {
         self.valuePromise = ValuePromise(UserDefaults.standard.bool(forKey: useOriginalTelegramLogoKey), ignoreRepeated: true)
         self.customIconsPromise = ValuePromise(UserDefaults.standard.bool(forKey: customSettingsIconsKey), ignoreRepeated: true)
+        // Tuples are not Equatable, so repeats cannot be filtered here.
+        self.liquidGlassPromise = ValuePromise(NetegramSettings.currentLiquidGlass())
     }
 
     /// When enabled, the app presents Telegram's original branding instead of Netegram's.
@@ -70,6 +84,50 @@ public final class NetegramSettings {
     public func setCustomSettingsIcons(_ value: Bool) {
         UserDefaults.standard.set(value, forKey: customSettingsIconsKey)
         self.customIconsPromise.set(value)
+    }
+
+    public var liquidGlassMessages: Bool {
+        return UserDefaults.standard.bool(forKey: liquidGlassMessagesKey)
+    }
+
+    public var liquidGlassInlineButtons: Bool {
+        return UserDefaults.standard.bool(forKey: liquidGlassInlineButtonsKey)
+    }
+
+    public var liquidGlassEverywhere: Bool {
+        return UserDefaults.standard.bool(forKey: liquidGlassEverywhereKey)
+    }
+
+    public var liquidGlassSignal: Signal<(messages: Bool, inlineButtons: Bool, everywhere: Bool), NoError> {
+        return self.liquidGlassPromise.get()
+    }
+
+    public func setLiquidGlassMessages(_ value: Bool) {
+        UserDefaults.standard.set(value, forKey: liquidGlassMessagesKey)
+        self.pushLiquidGlass()
+    }
+
+    public func setLiquidGlassInlineButtons(_ value: Bool) {
+        UserDefaults.standard.set(value, forKey: liquidGlassInlineButtonsKey)
+        self.pushLiquidGlass()
+    }
+
+    public func setLiquidGlassEverywhere(_ value: Bool) {
+        UserDefaults.standard.set(value, forKey: liquidGlassEverywhereKey)
+        self.pushLiquidGlass()
+    }
+
+    private func pushLiquidGlass() {
+        self.liquidGlassPromise.set(NetegramSettings.currentLiquidGlass())
+    }
+
+    private static func currentLiquidGlass() -> (messages: Bool, inlineButtons: Bool, everywhere: Bool) {
+        let defaults = UserDefaults.standard
+        return (
+            messages: defaults.bool(forKey: liquidGlassMessagesKey),
+            inlineButtons: defaults.bool(forKey: liquidGlassInlineButtonsKey),
+            everywhere: defaults.bool(forKey: liquidGlassEverywhereKey)
+        )
     }
 
     /// Bundle image name for the logo shown inside the app, following the toggle.

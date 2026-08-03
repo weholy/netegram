@@ -264,9 +264,23 @@ public class GlassBackgroundView: UIView {
         public let innerInset: CGFloat
         
         public init(kind: Kind, innerColor: UIColor? = nil, innerInset: CGFloat = 3.0) {
-            self.kind = kind
+            self.kind = TintColor.netegramResolved(kind)
             self.innerColor = innerColor
             self.innerInset = innerInset
+        }
+
+        /// Netegram: with "Liquid Glass everywhere" enabled, panel surfaces render as clear
+        /// glass. Resolved here, at construction, so every call site is covered without
+        /// editing each one — and both the native and the legacy rendering paths below see
+        /// the substituted kind.
+        ///
+        /// Read straight from UserDefaults: this module cannot import SettingsUI, which
+        /// already depends on it. The key is mirrored in NetegramSettings.
+        static func netegramResolved(_ kind: Kind) -> Kind {
+            if case .panel = kind, UserDefaults.standard.bool(forKey: "netegram.liquidGlass.everywhere") {
+                return .clear
+            }
+            return kind
         }
     }
     
