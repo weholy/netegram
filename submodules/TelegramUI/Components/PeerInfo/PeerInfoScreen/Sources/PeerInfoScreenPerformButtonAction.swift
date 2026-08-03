@@ -1,4 +1,5 @@
 import Foundation
+import SettingsUI
 import UIKit
 import Display
 import AccountContext
@@ -1271,7 +1272,23 @@ extension PeerInfoScreenNode {
             self.view.endEditing(true)
             
             if let sourceNode = self.headerNode.buttonNodes[.more]?.referenceNode {
-                let items = mainItemsImpl?() ?? .single([])
+                // Netegram: append our own entry to the end of the three-dot menu. Done by
+                // mapping the assembled list rather than touching the assembly itself.
+                let peerIdForTools = self.peerId
+                let items = (mainItemsImpl?() ?? .single([]))
+                |> map { [weak self] items -> [ContextMenuItem] in
+                    var items = items
+                    items.append(.action(ContextMenuActionItem(text: "Netegram", icon: { theme in
+                        return generateTintedImage(image: UIImage(bundleImageName: "Item List/Icons/Netegram"), color: theme.contextMenu.primaryColor)
+                    }, action: { _, f in
+                        f(.dismissWithoutContent)
+                        guard let self, let navigationController = self.controller?.navigationController as? NavigationController else {
+                            return
+                        }
+                        navigationController.pushViewController(netegramPeerToolsController(context: self.context, peerId: peerIdForTools))
+                    })))
+                    return items
+                }
                 
                 let sourceView = sourceNode.view
                 
