@@ -128,7 +128,9 @@ jobs:
           OUTPUT_PATH="build/artifacts"
           rm -rf "$OUTPUT_PATH"
           mkdir -p "$OUTPUT_PATH"
-          APP_PATH=$(find bazel-out -maxdepth 4 -name 'Telegram.app' -type d | head -n 1)
+          # bazel-out is a symlink, so find needs -L to descend into it at all.
+          APP_PATH=$(find -L bazel-out -maxdepth 6 -name '*.app' -type d 2>/dev/null | head -n 1)
+          echo "Found app bundle: ${APP_PATH:-<none>}"
           if [ -n "$APP_PATH" ]; then
             cp -R "$APP_PATH" "$OUTPUT_PATH/Netegram.app"
             (cd "$OUTPUT_PATH" && zip -qr Netegram-simulator.zip Netegram.app && rm -rf Netegram.app)
