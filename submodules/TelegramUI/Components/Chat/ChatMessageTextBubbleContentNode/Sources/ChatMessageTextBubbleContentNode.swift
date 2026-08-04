@@ -3,6 +3,135 @@ import UIKit
 import AsyncDisplayKit
 import Display
 import TelegramCore
+
+/// Netegram: true while "Premium emoji in bots" is on.
+///
+/// Cached because it is read while laying out every text message. The keys are mirrored in
+/// NetegramLocalFeatures — this module cannot import SettingsUI, which sits above it.
+final class NetegramBotEmojiState {
+    static let shared = NetegramBotEmojiState()
+
+    private(set) var enabled: Bool = false
+
+    private init() {
+        self.reload()
+        NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification,
+            object: nil,
+            queue: .main,
+            using: { [weak self] _ in
+                self?.reload()
+            }
+        )
+    }
+
+    private func reload() {
+        let defaults = UserDefaults.standard
+        // The dependent toggle only counts while local premium is on.
+        self.enabled = defaults.bool(forKey: "netegram.local.premium")
+            && defaults.bool(forKey: "netegram.local.premiumEmojiInBots")
+    }
+}
+
+/// Matches the Bot API's own custom-emoji markup.
+///
+/// Bots may only send real custom_emoji entities once they own a Fragment username; without
+/// one Telegram strips the entity server-side and the client receives plain text. So the
+/// literal markup that survives as text is turned back into an entity here.
+private let netegramBotEmojiRegex = try? NSRegularExpression(
+    pattern: "<tg-emoji\\s+emoji-id=\"(\\d+)\"\\s*>(.*?)</tg-emoji>",
+    options: [.caseInsensitive, .dotMatchesLineSeparators]
+)
+
+/// Returns nil when there is no markup, so callers skip the work entirely.
+///
+/// Entity offsets are UTF-16 code unit indices and removing the tags shifts everything after
+/// them, so existing entities are remapped rather than copied.
+func netegramRebuildBotEmoji(text: String, entities: [MessageTextEntity]) -> (text: String, entities: [MessageTextEntity])? {
+    guard let regex = netegramBotEmojiRegex else {
+        return nil
+    }
+    let source = text as NSString
+    let matches = regex.matches(in: text, options: [], range: NSRange(location: 0, length: source.length))
+    guard !matches.isEmpty else {
+        return nil
+    }
+
+    var result = ""
+    var addedEntities: [MessageTextEntity] = []
+    var offsetMap = [Int](repeating: 0, count: source.length + 1)
+    var sourceIndex = 0
+    var resultLength = 0
+
+    for match in matches {
+        let matchRange = match.range
+        let idRange = match.range(at: 1)
+        let innerRange = match.range(at: 2)
+
+        if matchRange.location > sourceIndex {
+            let plainRange = NSRange(location: sourceIndex, length: matchRange.location - sourceIndex)
+            for offset in plainRange.location ..< (plainRange.location + plainRange.length) {
+                offsetMap[offset] = resultLength + (offset - plainRange.location)
+            }
+            result += source.substring(with: plainRange)
+            resultLength += plainRange.length
+        }
+
+        for offset in matchRange.location ..< innerRange.location {
+            offsetMap[offset] = resultLength
+        }
+
+        let inner = source.substring(with: innerRange)
+        for offset in innerRange.location ..< (innerRange.location + innerRange.length) {
+            offsetMap[offset] = resultLength + (offset - innerRange.location)
+        }
+        let innerStart = resultLength
+        result += inner
+        resultLength += innerRange.length
+
+        for offset in (innerRange.location + innerRange.length) ..< (matchRange.location + matchRange.length) {
+            offsetMap[offset] = resultLength
+        }
+
+        if innerRange.length > 0, let fileId = Int64(source.substring(with: idRange)) {
+            addedEntities.append(MessageTextEntity(
+                range: innerStart ..< (innerStart + innerRange.length),
+                type: .CustomEmoji(stickerPack: nil, fileId: fileId)
+            ))
+        }
+
+        sourceIndex = matchRange.location + matchRange.length
+    }
+
+    if sourceIndex < source.length {
+        let tailRange = NSRange(location: sourceIndex, length: source.length - sourceIndex)
+        for offset in tailRange.location ..< (tailRange.location + tailRange.length) {
+            offsetMap[offset] = resultLength + (offset - tailRange.location)
+        }
+        result += source.substring(with: tailRange)
+        resultLength += tailRange.length
+    }
+    offsetMap[source.length] = resultLength
+
+    var remappedEntities: [MessageTextEntity] = []
+    for entity in entities {
+        let lower = min(max(entity.range.lowerBound, 0), source.length)
+        let upper = min(max(entity.range.upperBound, 0), source.length)
+        guard lower < upper else {
+            continue
+        }
+        let newLower = offsetMap[lower]
+        let newUpper = offsetMap[upper]
+        if newLower < newUpper {
+            remappedEntities.append(MessageTextEntity(range: newLower ..< newUpper, type: entity.type))
+        }
+    }
+
+    remappedEntities.append(contentsOf: addedEntities)
+    remappedEntities.sort(by: { $0.range.lowerBound < $1.range.lowerBound })
+
+    return (result, remappedEntities)
+}
 import TextFormat
 import UrlEscaping
 import TelegramUniversalVideoContent
@@ -445,6 +574,17 @@ public class ChatMessageTextBubbleContentNode: ChatMessageBubbleContentNode {
                 }
                 
                 
+                // Netegram: rebuild <tg-emoji> markup into a real custom-emoji entity.
+                // Applied once the text and entities are final, so translations and
+                // summaries are covered too. Display only — the message is never rewritten
+                // anywhere, so only this device shows the emoji.
+                if NetegramBotEmojiState.shared.enabled {
+                    if let (substitutedText, substitutedEntities) = netegramRebuildBotEmoji(text: rawText, entities: messageEntities ?? []) {
+                        rawText = substitutedText
+                        messageEntities = substitutedEntities
+                    }
+                }
+
                 if incoming && item.associatedData.isSuspiciousPeer, let entities = messageEntities {
                     messageEntities = entities.filter { entity in
                         switch entity.type {
