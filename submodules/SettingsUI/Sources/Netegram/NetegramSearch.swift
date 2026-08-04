@@ -122,9 +122,10 @@ private final class NetegramSearchArguments {
     }
 }
 
+// Results first, the input below them — the field belongs at the bottom, within thumb reach.
 private enum NetegramSearchSection: Int32 {
-    case query
     case results
+    case query
 }
 
 private enum NetegramSearchEntry: ItemListNodeEntry {
@@ -143,12 +144,13 @@ private enum NetegramSearchEntry: ItemListNodeEntry {
 
     var stableId: Int32 {
         switch self {
-        case .query:
-            return 0
         case .empty:
-            return 1
+            return 0
         case let .result(_, order, _, _):
             return Int32(100 + order)
+        // Sorted last so the field sits under the results rather than above them.
+        case .query:
+            return 10000
         }
     }
 
