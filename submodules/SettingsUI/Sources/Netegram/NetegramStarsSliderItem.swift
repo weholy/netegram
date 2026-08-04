@@ -208,6 +208,9 @@ final class NetegramStarsSliderItemNode: ListViewItemNode {
                                 item.updated(Int(fraction * CGFloat(maxValue)))
                             }
                         )),
+                        // The system control picks up the current OS slider design on its
+                        // own; the custom drawing path still looks like older iOS.
+                        useNative: true,
                         trackBackgroundColor: item.theme.list.itemSwitchColors.frameColor,
                         trackForegroundColor: item.theme.list.itemAccentColor,
                         isEnabled: item.enabled
