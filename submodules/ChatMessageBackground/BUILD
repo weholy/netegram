@@ -14,6 +14,8 @@ swift_library(
     	"//submodules/Display:Display",
     	"//submodules/TelegramPresentationData:TelegramPresentationData",
     	"//submodules/WallpaperBackgroundNode:WallpaperBackgroundNode",
+    	"//submodules/TelegramUI/Components/GlassBackgroundComponent",
+    	"//submodules/ComponentFlow:ComponentFlow",
     ],
     visibility = [
         "//visibility:public",

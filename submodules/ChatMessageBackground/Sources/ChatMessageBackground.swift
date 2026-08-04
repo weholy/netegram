@@ -4,6 +4,8 @@ import AsyncDisplayKit
 import Display
 import TelegramPresentationData
 import WallpaperBackgroundNode
+import GlassBackgroundComponent
+import ComponentFlow
 
 public enum ChatMessageBackgroundMergeType: Equatable {
     case None, Side, Top(side: Bool), Bottom, Both, Extracted
@@ -58,8 +60,38 @@ public enum ChatMessageBackgroundType: Equatable {
     }
 }
 
+/// Netegram: true while "Liquid Glass on messages" is on.
+///
+/// Cached in memory because it is read while laying out every bubble. The key is mirrored
+/// in NetegramSettings — this module cannot import SettingsUI.
+private final class NetegramBubbleGlassState {
+    static let shared = NetegramBubbleGlassState()
+
+    private(set) var enabled: Bool = false
+
+    private init() {
+        self.reload()
+        NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification,
+            object: nil,
+            queue: .main,
+            using: { [weak self] _ in
+                self?.reload()
+            }
+        )
+    }
+
+    private func reload() {
+        self.enabled = UserDefaults.standard.bool(forKey: "netegram.liquidGlass.messages")
+    }
+}
+
 public class ChatMessageBackground: ASDisplayNode {
     public weak var backdropNode: ChatMessageBubbleBackdrop?
+
+    /// Sits under the bubble artwork so UIGlassEffect refracts the wallpaper behind it.
+    /// Only rounded rectangles are supported, so bubbles lose their tail while it is on.
+    private var glassView: GlassBackgroundView?
         
     public private(set) var type: ChatMessageBackgroundType?
     private var currentHighlighted: Bool?
@@ -118,6 +150,44 @@ public class ChatMessageBackground: ASDisplayNode {
             transition.updateFrame(view: imageView, frame: imageFrame)
         }
         transition.updateFrame(node: self.outlineImageNode, frame: CGRect(origin: CGPoint(), size: size).insetBy(dx: -1.0, dy: -1.0))
+        self.updateNetegramGlass(size: size, transition: ComponentTransition(transition))
+    }
+
+    /// Puts a glass layer under the bubble and hides the painted artwork, so what shows
+    /// through is the refracted wallpaper rather than a flat fill.
+    private func updateNetegramGlass(size: CGSize, transition: ComponentTransition) {
+        guard NetegramBubbleGlassState.shared.enabled else {
+            if let glassView = self.glassView {
+                glassView.removeFromSuperview()
+                self.glassView = nil
+                self.imageView?.isHidden = false
+                self.outlineImageNode.isHidden = false
+            }
+            return
+        }
+
+        let glassView: GlassBackgroundView
+        if let current = self.glassView {
+            glassView = current
+        } else {
+            glassView = GlassBackgroundView(frame: CGRect())
+            glassView.isUserInteractionEnabled = false
+            self.view.insertSubview(glassView, at: 0)
+            self.glassView = glassView
+        }
+
+        // The bubble artwork would sit on top of the glass and hide it entirely.
+        self.imageView?.isHidden = true
+        self.outlineImageNode.isHidden = true
+
+        glassView.frame = CGRect(origin: CGPoint(), size: size)
+        glassView.update(
+            size: size,
+            cornerRadius: min(18.0, size.height * 0.5),
+            isDark: true,
+            tintColor: .init(kind: .clear),
+            transition: transition
+        )
     }
     
     public func updateLayout(size: CGSize, transition: ListViewItemUpdateAnimation) {
@@ -128,6 +198,7 @@ public class ChatMessageBackground: ASDisplayNode {
         }
         
         transition.animator.updateFrame(layer: self.outlineImageNode.layer, frame: CGRect(origin: CGPoint(), size: size).insetBy(dx: -1.0, dy: -1.0), completion: nil)
+        self.updateNetegramGlass(size: size, transition: .immediate)
     }
     
     public func setMaskMode(_ maskMode: Bool) {
