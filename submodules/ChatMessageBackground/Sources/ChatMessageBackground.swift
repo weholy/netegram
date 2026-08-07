@@ -153,8 +153,14 @@ public class ChatMessageBackground: ASDisplayNode {
         self.updateNetegramGlass(size: size, transition: ComponentTransition(transition))
     }
 
-    /// Puts a glass layer under the bubble and hides the painted artwork, so what shows
+    /// Puts a glass layer under the bubble and hides everything opaque above it, so what shows
     /// through is the refracted wallpaper rather than a flat fill.
+    ///
+    /// Three things paint a bubble: the artwork image (the coloured fill plus the tail), the
+    /// outline, and — on pattern wallpapers — the backdrop node that samples the wallpaper
+    /// inside the bubble shape. All three have to go, otherwise the glass sits behind an
+    /// opaque surface and the effect is invisible. Only rounded rectangles are supported, so
+    /// bubbles lose their tail while this is on.
     private func updateNetegramGlass(size: CGSize, transition: ComponentTransition) {
         guard NetegramBubbleGlassState.shared.enabled else {
             if let glassView = self.glassView {
@@ -162,6 +168,7 @@ public class ChatMessageBackground: ASDisplayNode {
                 self.glassView = nil
                 self.imageView?.isHidden = false
                 self.outlineImageNode.isHidden = false
+                self.backdropNode?.isHidden = false
             }
             return
         }
@@ -176,15 +183,19 @@ public class ChatMessageBackground: ASDisplayNode {
             self.glassView = glassView
         }
 
-        // The bubble artwork would sit on top of the glass and hide it entirely.
         self.imageView?.isHidden = true
         self.outlineImageNode.isHidden = true
+        self.backdropNode?.isHidden = true
+
+        // Read from the trait collection rather than the theme: this node is handed graphics,
+        // not a PresentationTheme, and the glass only needs to know which way to lean.
+        let isDark = self.view.traitCollection.userInterfaceStyle == .dark
 
         glassView.frame = CGRect(origin: CGPoint(), size: size)
         glassView.update(
             size: size,
             cornerRadius: min(18.0, size.height * 0.5),
-            isDark: true,
+            isDark: isDark,
             tintColor: .init(kind: .clear),
             transition: transition
         )
