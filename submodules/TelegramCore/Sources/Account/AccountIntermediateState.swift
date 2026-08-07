@@ -80,6 +80,9 @@ enum AccountStateMutationOperation {
     case AddQuickReplyMessages([StoreMessage])
     case DeleteMessagesWithGlobalIds([Int32])
     case DeleteMessages([MessageId])
+    /// Netegram: keep the messages and mark them instead of removing them.
+    case NetegramMarkDeletedWithGlobalIds([Int32])
+    case NetegramMarkDeleted([MessageId])
     case EditMessage(MessageId, StoreMessage)
     case UpdateMessagePoll(MediaId, Api.Poll?, Api.PollResults)
     case UpdateMessageReactions(MessageId, Int64?, Api.MessageReactions, Int32?)
@@ -387,10 +390,31 @@ struct AccountMutableState {
     }
 
     mutating func deleteMessagesWithGlobalIds(_ globalIds: [Int32]) {
+        // Netegram: anti-revoke turns "remove these" into "mark these". Routed here rather
+        // than at each of the half-dozen call sites, so a new caller cannot forget it.
+        if NetegramAnti.revoke {
+            self.addOperation(.NetegramMarkDeletedWithGlobalIds(globalIds))
+            return
+        }
         self.addOperation(.DeleteMessagesWithGlobalIds(globalIds))
     }
     
     mutating func deleteMessages(_ messageIds: [MessageId]) {
+        if NetegramAnti.revoke {
+            self.addOperation(.NetegramMarkDeleted(messageIds))
+            return
+        }
+        self.addOperation(.DeleteMessages(messageIds))
+    }
+
+    /// Netegram: messages the server says have expired on their own timer. Kept separate from
+    /// a revoke because the two are different promises — one is "I take it back", the other is
+    /// "this was only ever temporary" — and each has its own switch.
+    mutating func deleteExpiredMessages(_ messageIds: [MessageId]) {
+        if NetegramAnti.autoDelete {
+            self.addOperation(.NetegramMarkDeleted(messageIds))
+            return
+        }
         self.addOperation(.DeleteMessages(messageIds))
     }
     
@@ -779,7 +803,7 @@ struct AccountMutableState {
     
     mutating func addOperation(_ operation: AccountStateMutationOperation) {
         switch operation {
-        case .DeleteMessages, .DeleteMessagesWithGlobalIds, .EditMessage, .UpdateMessagePoll, .UpdateMessageReactions, .UpdateMedia, .ReadOutbox, .ReadGroupFeedInbox, .MergePeerPresences, .UpdateSecretChat, .AddSecretMessages, .ReadSecretOutbox, .AddPeerInputActivity, .AddPeerLiveTypingDraftUpdate, .UpdateCachedPeerData, .UpdatePinnedItemIds, .UpdatePinnedSavedItemIds, .UpdatePinnedTopic, .UpdatePinnedTopicOrder, .ReadMessageContents, .UpdateMessageImpressionCount, .UpdateMessageForwardsCount, .UpdateInstalledStickerPacks, .UpdateRecentGifs, .UpdateChatInputState, .UpdateCall, .AddCallSignalingData, .UpdateLangPack, .UpdateMinAvailableMessage, .UpdatePeerChatUnreadMark, .UpdateIsContact, .UpdatePeerChatInclusion, .UpdateTheme, .UpdateWallpaper, .SyncChatListFilters, .UpdateChatListFilterOrder, .UpdateChatListFilter, .UpdateReadThread, .UpdateGroupCallParticipants, .UpdateGroupCall, .UpdateGroupCallChainBlocks, .UpdateGroupCallMessage, .UpdateGroupCallOpaqueMessage, .UpdateMessagesPinned, .UpdateAutoremoveTimeout, .UpdateAttachMenuBots, .UpdateAudioTranscription, .UpdateConfig, .UpdateExtendedMedia, .ResetForumTopic, .UpdateStory, .UpdateReadStories, .UpdateStoryStealthMode, .UpdateStorySentReaction, .UpdateNewAuthorization, .UpdateNewBotConnection, .UpdateWebBrowserSettings, .UpdateWebBrowserException, .UpdateStarsBalance, .UpdateStarsRevenueStatus, .UpdateStarsReactionsDefaultPrivacy, .ReportMessageDelivery, .UpdateMonoForumNoPaidException, .UpdateStarGiftAuctionState, .UpdateStarGiftAuctionMyState, .UpdateEmojiGameInfo:
+        case .DeleteMessages, .DeleteMessagesWithGlobalIds, .NetegramMarkDeleted, .NetegramMarkDeletedWithGlobalIds, .EditMessage, .UpdateMessagePoll, .UpdateMessageReactions, .UpdateMedia, .ReadOutbox, .ReadGroupFeedInbox, .MergePeerPresences, .UpdateSecretChat, .AddSecretMessages, .ReadSecretOutbox, .AddPeerInputActivity, .AddPeerLiveTypingDraftUpdate, .UpdateCachedPeerData, .UpdatePinnedItemIds, .UpdatePinnedSavedItemIds, .UpdatePinnedTopic, .UpdatePinnedTopicOrder, .ReadMessageContents, .UpdateMessageImpressionCount, .UpdateMessageForwardsCount, .UpdateInstalledStickerPacks, .UpdateRecentGifs, .UpdateChatInputState, .UpdateCall, .AddCallSignalingData, .UpdateLangPack, .UpdateMinAvailableMessage, .UpdatePeerChatUnreadMark, .UpdateIsContact, .UpdatePeerChatInclusion, .UpdateTheme, .UpdateWallpaper, .SyncChatListFilters, .UpdateChatListFilterOrder, .UpdateChatListFilter, .UpdateReadThread, .UpdateGroupCallParticipants, .UpdateGroupCall, .UpdateGroupCallChainBlocks, .UpdateGroupCallMessage, .UpdateGroupCallOpaqueMessage, .UpdateMessagesPinned, .UpdateAutoremoveTimeout, .UpdateAttachMenuBots, .UpdateAudioTranscription, .UpdateConfig, .UpdateExtendedMedia, .ResetForumTopic, .UpdateStory, .UpdateReadStories, .UpdateStoryStealthMode, .UpdateStorySentReaction, .UpdateNewAuthorization, .UpdateNewBotConnection, .UpdateWebBrowserSettings, .UpdateWebBrowserException, .UpdateStarsBalance, .UpdateStarsRevenueStatus, .UpdateStarsReactionsDefaultPrivacy, .ReportMessageDelivery, .UpdateMonoForumNoPaidException, .UpdateStarGiftAuctionState, .UpdateStarGiftAuctionMyState, .UpdateEmojiGameInfo:
                 break
             case let .AddMessages(messages, location):
                 for message in messages {

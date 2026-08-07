@@ -1,5 +1,6 @@
 import Foundation
 import UIKit
+import CoreLocation
 import Display
 import SwiftSignalKit
 import TelegramCore
@@ -14,12 +15,16 @@ private final class NetegramGhostArguments {
     let updateFlag: (String, Bool) -> Void
     let updateDelaySeconds: (Int32) -> Void
     let updateDeviceName: (String) -> Void
+    let pickLocation: () -> Void
+    let resetLocation: () -> Void
 
-    init(updateEnabled: @escaping (Bool) -> Void, updateFlag: @escaping (String, Bool) -> Void, updateDelaySeconds: @escaping (Int32) -> Void, updateDeviceName: @escaping (String) -> Void) {
+    init(updateEnabled: @escaping (Bool) -> Void, updateFlag: @escaping (String, Bool) -> Void, updateDelaySeconds: @escaping (Int32) -> Void, updateDeviceName: @escaping (String) -> Void, pickLocation: @escaping () -> Void, resetLocation: @escaping () -> Void) {
         self.updateEnabled = updateEnabled
         self.updateFlag = updateFlag
         self.updateDelaySeconds = updateDelaySeconds
         self.updateDeviceName = updateDeviceName
+        self.pickLocation = pickLocation
+        self.resetLocation = resetLocation
     }
 }
 
@@ -30,6 +35,8 @@ private enum NetegramGhostSection: Int32 {
     case receipts
     case extras
     case delay
+    case location
+    case keep
     case device
 }
 
@@ -64,6 +71,20 @@ private enum NetegramGhostEntry: ItemListNodeEntry {
     case delaySeconds(Int32, Bool)
     case delayedSendFooter
 
+    case locationHeader
+    case locationEnabled(Bool, Bool)
+    case locationPick(String)
+    case locationReset
+    case locationFooter
+
+    case keepHeader
+    case antiRevoke(Bool)
+    case antiRevokeFooter
+    case antiEdit(Bool)
+    case antiEditFooter
+    case antiAutoDelete(Bool)
+    case antiAutoDeleteFooter
+
     case noAds(Bool)
     case noAdsFooter
 
@@ -83,6 +104,10 @@ private enum NetegramGhostEntry: ItemListNodeEntry {
             return NetegramGhostSection.receipts.rawValue
         case .delayedSend, .delaySeconds, .delayedSendFooter:
             return NetegramGhostSection.delay.rawValue
+        case .locationHeader, .locationEnabled, .locationPick, .locationReset, .locationFooter:
+            return NetegramGhostSection.location.rawValue
+        case .keepHeader, .antiRevoke, .antiRevokeFooter, .antiEdit, .antiEditFooter, .antiAutoDelete, .antiAutoDeleteFooter:
+            return NetegramGhostSection.keep.rawValue
         case .noAds, .noAdsFooter:
             return NetegramGhostSection.extras.rawValue
         case .deviceName, .deviceNameFooter:
@@ -116,10 +141,22 @@ private enum NetegramGhostEntry: ItemListNodeEntry {
         case .delayedSend: return 112
         case .delaySeconds: return 113
         case .delayedSendFooter: return 114
-        case .noAds: return 115
-        case .noAdsFooter: return 116
-        case .deviceName: return 117
-        case .deviceNameFooter: return 118
+        case .locationHeader: return 115
+        case .locationEnabled: return 116
+        case .locationPick: return 117
+        case .locationReset: return 118
+        case .locationFooter: return 119
+        case .keepHeader: return 120
+        case .antiRevoke: return 121
+        case .antiRevokeFooter: return 122
+        case .antiEdit: return 123
+        case .antiEditFooter: return 124
+        case .antiAutoDelete: return 125
+        case .antiAutoDeleteFooter: return 126
+        case .noAds: return 127
+        case .noAdsFooter: return 128
+        case .deviceName: return 129
+        case .deviceNameFooter: return 130
         }
     }
 
@@ -198,6 +235,42 @@ private enum NetegramGhostEntry: ItemListNodeEntry {
             })
         case .delayedSendFooter:
             return ItemListTextItem(presentationData: presentationData, text: .plain(NetegramGhostStrings.delayedSendFooter), sectionId: self.section)
+        case .locationHeader:
+            return ItemListSectionHeaderItem(presentationData: presentationData, text: NetegramGhostStrings.location, sectionId: self.section)
+        case let .locationEnabled(value, enabled):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: NetegramGhostStrings.locationEnabled, value: value, enabled: enabled, sectionId: self.section, style: .blocks, updated: { value in
+                arguments.updateFlag(NetegramGhostKeys.locationEnabled, value)
+            })
+        case let .locationPick(label):
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramGhostStrings.locationPick, label: label, sectionId: self.section, style: .blocks, action: {
+                arguments.pickLocation()
+            })
+        case .locationReset:
+            return ItemListActionItem(presentationData: presentationData, systemStyle: .glass, title: NetegramGhostStrings.locationReset, kind: .destructive, alignment: .natural, sectionId: self.section, style: .blocks, action: {
+                arguments.resetLocation()
+            })
+        case .locationFooter:
+            return ItemListTextItem(presentationData: presentationData, text: .plain(NetegramGhostStrings.locationFooter), sectionId: self.section)
+        case .keepHeader:
+            return ItemListSectionHeaderItem(presentationData: presentationData, text: NetegramGhostStrings.keep, sectionId: self.section)
+        case let .antiRevoke(value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: NetegramGhostStrings.antiRevoke, value: value, sectionId: self.section, style: .blocks, updated: { value in
+                arguments.updateFlag(NetegramGhostKeys.antiRevoke, value)
+            })
+        case .antiRevokeFooter:
+            return ItemListTextItem(presentationData: presentationData, text: .plain(NetegramGhostStrings.antiRevokeFooter), sectionId: self.section)
+        case let .antiEdit(value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: NetegramGhostStrings.antiEdit, value: value, sectionId: self.section, style: .blocks, updated: { value in
+                arguments.updateFlag(NetegramGhostKeys.antiEdit, value)
+            })
+        case .antiEditFooter:
+            return ItemListTextItem(presentationData: presentationData, text: .plain(NetegramGhostStrings.antiEditFooter), sectionId: self.section)
+        case let .antiAutoDelete(value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: NetegramGhostStrings.antiAutoDelete, value: value, sectionId: self.section, style: .blocks, updated: { value in
+                arguments.updateFlag(NetegramGhostKeys.antiAutoDelete, value)
+            })
+        case .antiAutoDeleteFooter:
+            return ItemListTextItem(presentationData: presentationData, text: .plain(NetegramGhostStrings.antiAutoDeleteFooter), sectionId: self.section)
         case let .noAds(value):
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: NetegramGhostStrings.noAds, value: value, sectionId: self.section, style: .blocks, updated: { value in
                 arguments.updateFlag(NetegramGhostKeys.noAds, value)
@@ -270,6 +343,18 @@ private func netegramGhostEntries(settings: NetegramGhostSettings) -> [NetegramG
         .delayedSend(settings.flag(NetegramGhostKeys.delayedSend), on),
         .delaySeconds(settings.delayedSendSeconds, on && settings.flag(NetegramGhostKeys.delayedSend)),
         .delayedSendFooter,
+        .locationHeader,
+        .locationEnabled(settings.flag(NetegramGhostKeys.locationEnabled), settings.hasLocation),
+        .locationPick(settings.hasLocation ? String(format: "%.4f, %.4f", settings.latitude, settings.longitude) : NetegramGhostStrings.locationNotSet),
+        .locationReset,
+        .locationFooter,
+        .keepHeader,
+        .antiRevoke(settings.flag(NetegramGhostKeys.antiRevoke)),
+        .antiRevokeFooter,
+        .antiEdit(settings.flag(NetegramGhostKeys.antiEdit)),
+        .antiEditFooter,
+        .antiAutoDelete(settings.flag(NetegramGhostKeys.antiAutoDelete)),
+        .antiAutoDeleteFooter,
         .noAds(settings.flag(NetegramGhostKeys.noAds)),
         .noAdsFooter,
         .deviceName(settings.deviceName),
@@ -293,6 +378,14 @@ public func netegramGhostController(context: AccountContext) -> ViewController {
         NetegramGhostPreferences.shared.setDelayedSendSeconds(value)
     }, updateDeviceName: { value in
         NetegramGhostPreferences.shared.setDeviceName(value)
+    }, pickLocation: {
+        let current = NetegramGhostPreferences.current()
+        let initial = current.hasLocation ? CLLocationCoordinate2D(latitude: current.latitude, longitude: current.longitude) : nil
+        netegramPresentLocationPicker(window: context.sharedContext.mainWindow, initial: initial, completion: { coordinate in
+            NetegramGhostPreferences.shared.setLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        })
+    }, resetLocation: {
+        NetegramGhostPreferences.shared.resetLocation()
     })
 
     let signal = combineLatest(queue: .mainQueue(),

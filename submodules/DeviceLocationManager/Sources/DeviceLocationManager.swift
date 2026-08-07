@@ -69,8 +69,13 @@ public final class DeviceLocationManager: NSObject {
         let id = self.nextSubscriberId
         self.nextSubscriberId += 1
         self.subscribers.append(DeviceLocationSubscriber(id: id, mode: mode, update: updated))
-        
-        if let currentLocation = self.currentLocation {
+
+        // Netegram: a spoofed position is answered straight away rather than waiting for the
+        // hardware. Otherwise a device with location services switched off would never report
+        // anything, and the substitution below would never get a chance to run.
+        if let spoofed = netegramSpoofedLocation() {
+            updated(spoofed, nil)
+        } else if let currentLocation = self.currentLocation {
             updated(currentLocation, self.currentHeading?.magneticHeading)
         }
         
@@ -148,9 +153,12 @@ extension DeviceLocationManager: CLLocationManagerDelegate {
         
         if let location = locations.first {
             if self.currentTopMode != nil {
-                self.currentLocation = location
+                // Netegram: the real reading is dropped rather than corrected, so nothing
+                // downstream can average the two and leak the true position.
+                let reportedLocation = netegramSpoofedLocation() ?? location
+                self.currentLocation = reportedLocation
                 for subscriber in self.subscribers {
-                    subscriber.update(location, self.currentHeading?.effectiveHeading)
+                    subscriber.update(reportedLocation, self.currentHeading?.effectiveHeading)
                 }
             }
         }
@@ -182,4 +190,25 @@ public func currentLocationManagerCoordinate(manager: DeviceLocationManager, tim
         |> runOn(Queue.mainQueue())
     )
     |> timeout(timeoutValue, queue: Queue.mainQueue(), alternate: .single(nil))
+}
+
+/// Netegram: the position reported instead of the real one, or nil when spoofing is off.
+///
+/// Read from UserDefaults on every call rather than cached: location updates are sparse
+/// compared to anything on a layout path, and a stale cache here would mean the map keeps
+/// showing the old pin after you moved it.
+///
+/// Keys are mirrored in NetegramGhost (SettingsUI). This module sits below it and cannot
+/// import it.
+public func netegramSpoofedLocation() -> CLLocation? {
+    let defaults = UserDefaults.standard
+    guard defaults.bool(forKey: "netegram.location.enabled") else {
+        return nil
+    }
+    let latitude = defaults.double(forKey: "netegram.location.latitude")
+    let longitude = defaults.double(forKey: "netegram.location.longitude")
+    guard latitude != 0.0 || longitude != 0.0 else {
+        return nil
+    }
+    return CLLocation(latitude: latitude, longitude: longitude)
 }

@@ -36,6 +36,17 @@ public enum NetegramGhostKeys {
     public static let delayedSend = "netegram.ghost.delayedSend"
     public static let delayedSendSeconds = "netegram.ghost.delayedSendSeconds"
     public static let deviceName = "netegram.ghost.deviceName"
+
+    /// Read in TelegramCore's update processing — these decide what the client refuses to
+    /// throw away, so they sit below the ghost switch rather than under it.
+    /// Read in DeviceLocationManager, which substitutes the reading before anything sees it.
+    public static let locationEnabled = "netegram.location.enabled"
+    public static let locationLatitude = "netegram.location.latitude"
+    public static let locationLongitude = "netegram.location.longitude"
+
+    public static let antiRevoke = "netegram.anti.revoke"
+    public static let antiEdit = "netegram.anti.edit"
+    public static let antiAutoDelete = "netegram.anti.autoDelete"
 }
 
 public enum NetegramGhostStrings {
@@ -82,6 +93,25 @@ public enum NetegramGhostStrings {
     public static let readOnAction = "Читать при действиях"
     public static let readOnActionFooter = "Просто открыть чат — ничего не меняется. Но стоит ответить или поставить реакцию, и переписка отмечается прочитанной: молчаливый собеседник, который при этом отвечает, выглядит страннее любых галочек."
 
+    public static let location = "Подмена локации"
+    public static let locationEnabled = "Подменять геопозицию"
+    public static let locationFooter = "Всё, что запрашивает ваше местоположение — отправка геопозиции, поиск людей рядом, — получает выбранную точку вместо настоящей."
+    public static let locationPick = "Выбрать на карте"
+    public static let locationReset = "Сбросить точку"
+    public static let locationNotSet = "не выбрана"
+    public static let locationPickTitle = "Точка на карте"
+    public static let locationApply = "Готово"
+    public static let locationCancel = "Отмена"
+
+    public static let keep = "Сохранение переписки"
+    public static let keepFooter = "Работает независимо от режима призрака: это про то, что видите вы, а не про то, что видят другие."
+    public static let antiRevoke = "Не удалять удалённое"
+    public static let antiRevokeFooter = "Сообщение, которое собеседник забрал назад, остаётся в переписке с корзиной в начале — видно и что написали, и что передумали."
+    public static let antiEdit = "Не применять правки"
+    public static let antiEditFooter = "Отредактированное чужое сообщение остаётся в том виде, в каком вы его прочитали. Свои правки применяются как обычно — иначе вы бы не видели собственных исправлений."
+    public static let antiAutoDelete = "Не удалять по таймеру"
+    public static let antiAutoDeleteFooter = "Исчезающие сообщения остаются после того, как их срок вышел."
+
     public static let extras = "Прочее"
     public static let noAds = "Скрыть рекламу"
     public static let noAdsFooter = "Спонсорские сообщения в каналах не запрашиваются."
@@ -98,12 +128,20 @@ public struct NetegramGhostSettings: Equatable {
     public let flags: [String: Bool]
     public let delayedSendSeconds: Int32
     public let deviceName: String
+    public let latitude: Double
+    public let longitude: Double
 
-    public init(enabled: Bool, flags: [String: Bool], delayedSendSeconds: Int32, deviceName: String) {
+    public init(enabled: Bool, flags: [String: Bool], delayedSendSeconds: Int32, deviceName: String, latitude: Double, longitude: Double) {
         self.enabled = enabled
         self.flags = flags
         self.delayedSendSeconds = delayedSendSeconds
         self.deviceName = deviceName
+        self.latitude = latitude
+        self.longitude = longitude
+    }
+
+    public var hasLocation: Bool {
+        return self.latitude != 0.0 || self.longitude != 0.0
     }
 
     public func flag(_ key: String) -> Bool {
@@ -125,7 +163,9 @@ public final class NetegramGhostPreferences {
         NetegramGhostKeys.playGame, NetegramGhostKeys.speaking, NetegramGhostKeys.emojiInteraction,
         NetegramGhostKeys.emojiSeen, NetegramGhostKeys.readReceipts, NetegramGhostKeys.storyViews,
         NetegramGhostKeys.viewOnce, NetegramGhostKeys.screenshots, NetegramGhostKeys.noAds,
-        NetegramGhostKeys.readOnAction, NetegramGhostKeys.delayedSend
+        NetegramGhostKeys.readOnAction, NetegramGhostKeys.delayedSend,
+        NetegramGhostKeys.antiRevoke, NetegramGhostKeys.antiEdit, NetegramGhostKeys.antiAutoDelete,
+        NetegramGhostKeys.locationEnabled
     ]
 
     private let promise: ValuePromise<NetegramGhostSettings>
@@ -145,8 +185,27 @@ public final class NetegramGhostPreferences {
             enabled: defaults.bool(forKey: NetegramGhostKeys.enabled),
             flags: flags,
             delayedSendSeconds: Int32(seconds),
-            deviceName: defaults.string(forKey: NetegramGhostKeys.deviceName) ?? ""
+            deviceName: defaults.string(forKey: NetegramGhostKeys.deviceName) ?? "",
+            latitude: defaults.double(forKey: NetegramGhostKeys.locationLatitude),
+            longitude: defaults.double(forKey: NetegramGhostKeys.locationLongitude)
         )
+    }
+
+    public func setLocation(latitude: Double, longitude: Double) {
+        let defaults = UserDefaults.standard
+        defaults.set(latitude, forKey: NetegramGhostKeys.locationLatitude)
+        defaults.set(longitude, forKey: NetegramGhostKeys.locationLongitude)
+        self.promise.set(NetegramGhostPreferences.current())
+    }
+
+    /// Clearing the point also clears the switch: a spoof turned on with nowhere to be is a
+    /// setting that silently does nothing.
+    public func resetLocation() {
+        let defaults = UserDefaults.standard
+        defaults.set(0.0, forKey: NetegramGhostKeys.locationLatitude)
+        defaults.set(0.0, forKey: NetegramGhostKeys.locationLongitude)
+        defaults.set(false, forKey: NetegramGhostKeys.locationEnabled)
+        self.promise.set(NetegramGhostPreferences.current())
     }
 
     public var signal: Signal<NetegramGhostSettings, NoError> {
