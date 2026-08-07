@@ -29,7 +29,10 @@ func convertFrame(_ frame: CGRect, from fromView: UIView, to toView: UIView) -> 
 /// The key is mirrored in NetegramLook — this module cannot import SettingsUI, which already
 /// depends on it. Cached in memory because a context menu is built on the main thread while
 /// the long-press gesture is still resolving.
-private final class NetegramContextBlurPreference {
+///
+/// Internal rather than private: ContextSourceContainer reads it too, and that is the file
+/// that actually draws the dim behind an extracted source.
+final class NetegramContextBlurPreference {
     static let shared = NetegramContextBlurPreference()
 
     private(set) var redesign: Bool = false

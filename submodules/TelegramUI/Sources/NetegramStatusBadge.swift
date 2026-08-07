@@ -19,11 +19,12 @@ public final class NetegramStatusBadgeView: UIView {
 
     public override init(frame: CGRect) {
         self.badgeView = UIImageView(image: UIImage(bundleImageName: "Netegram Icons/StatusBadge"))
+
+        super.init(frame: frame)
+
         self.badgeView.contentMode = .scaleToFill
         self.badgeView.clipsToBounds = true
         self.badgeView.layer.cornerCurve = .continuous
-
-        super.init(frame: frame)
 
         self.isUserInteractionEnabled = false
         // Keeps the pill above every view the app later adds to the window, without having to

@@ -634,10 +634,15 @@ final class ContextSourceContainer: ASDisplayNode {
                     transition: .immediate
                 )
             case let .extracted(extracted):
+                // Netegram: the redesigned long-press menu keeps the dim but drops the blur,
+                // so the chat behind the menu stays readable. This is the node that actually
+                // blurs a long-pressed message — the effect view in ContextControllerNode
+                // covers other sources.
+                let enableBlur = extracted.blurBackground && !NetegramContextBlurPreference.shared.redesign
                 self.backgroundNode.updateColor(
                     color: extracted.blurBackground ? presentationData.theme.contextMenu.dimColor : .clear,
-                    enableBlur: extracted.blurBackground,
-                    forceKeepBlur: extracted.blurBackground,
+                    enableBlur: enableBlur,
+                    forceKeepBlur: enableBlur,
                     transition: .immediate
                 )
             case .controller:
