@@ -365,10 +365,14 @@ public func netegramHideProfileButtonsController(context: AccountContext) -> Vie
 }
 
 public func netegramLookController(context: AccountContext) -> ViewController {
+    var presentRestartImpl: ((String) -> Void)?
+
     let arguments = NetegramLookArguments(updateContextRedesign: { value in
         NetegramLookPreferences.shared.setContextRedesign(value)
+        presentRestartImpl?(NetegramRestartStrings.contextMenu)
     }, updateRoundButtons: { value in
         NetegramLookPreferences.shared.setRoundProfileButtons(value)
+        presentRestartImpl?(NetegramRestartStrings.profileButtons)
     })
 
     let signal = combineLatest(queue: .mainQueue(),
@@ -401,5 +405,9 @@ public func netegramLookController(context: AccountContext) -> ViewController {
         return (controllerState, (listState, arguments))
     }
 
-    return ItemListController(context: context, state: signal)
+    let controller = ItemListController(context: context, state: signal)
+    presentRestartImpl = { [weak controller] text in
+        netegramPresentRestartToast(context: context, controller: controller, text: text)
+    }
+    return controller
 }

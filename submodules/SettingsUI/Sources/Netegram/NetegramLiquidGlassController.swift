@@ -93,12 +93,17 @@ private enum NetegramLiquidGlassEntry: ItemListNodeEntry {
 }
 
 public func netegramLiquidGlassController(context: AccountContext) -> ViewController {
+    var presentRestartImpl: (() -> Void)?
+
     let arguments = NetegramLiquidGlassControllerArguments(updateMessages: { value in
         NetegramSettings.shared.setLiquidGlassMessages(value)
+        presentRestartImpl?()
     }, updateInlineButtons: { value in
         NetegramSettings.shared.setLiquidGlassInlineButtons(value)
+        presentRestartImpl?()
     }, updateEverywhere: { value in
         NetegramSettings.shared.setLiquidGlassEverywhere(value)
+        presentRestartImpl?()
     })
 
     let signal = combineLatest(queue: .mainQueue(),
@@ -133,5 +138,9 @@ public func netegramLiquidGlassController(context: AccountContext) -> ViewContro
         return (controllerState, (listState, arguments))
     }
 
-    return ItemListController(context: context, state: signal)
+    let controller = ItemListController(context: context, state: signal)
+    presentRestartImpl = { [weak controller] in
+        netegramPresentRestartToast(context: context, controller: controller, text: NetegramRestartStrings.glass)
+    }
+    return controller
 }

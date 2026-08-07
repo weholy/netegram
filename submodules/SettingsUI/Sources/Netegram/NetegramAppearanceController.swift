@@ -104,6 +104,8 @@ private func netegramAppearanceControllerEntries(useOriginalLogo: Bool, customIc
 }
 
 public func netegramAppearanceController(context: AccountContext) -> ViewController {
+    var presentRestartImpl: (() -> Void)?
+
     let arguments = NetegramAppearanceControllerArguments(updateUseOriginalLogo: { value in
         NetegramSettings.shared.setUseOriginalTelegramLogo(value)
 
@@ -120,6 +122,7 @@ public func netegramAppearanceController(context: AccountContext) -> ViewControl
         netegramInvalidateSettingsIconCache()
     }, updateContextRedesign: { value in
         NetegramLookPreferences.shared.setContextRedesign(value)
+        presentRestartImpl?()
     })
 
     // Mirrored from the "Внешний вид" screen: both write the same preference, so the switch
@@ -149,5 +152,9 @@ public func netegramAppearanceController(context: AccountContext) -> ViewControl
         return (controllerState, (listState, arguments))
     }
 
-    return ItemListController(context: context, state: signal)
+    let controller = ItemListController(context: context, state: signal)
+    presentRestartImpl = { [weak controller] in
+        netegramPresentRestartToast(context: context, controller: controller, text: NetegramRestartStrings.contextMenu)
+    }
+    return controller
 }
