@@ -303,6 +303,17 @@ final class PeerInfoHeaderButtonNode: HighlightableButtonNode {
             transition.updateCornerRadius(layer: self.backgroundView.layer, cornerRadius: min(16.0, backgroundFrame.height * 0.5))
         }
         self.updateNetegramGlass(isRound: isRound, frame: backgroundFrame, transition: transition)
+
+        let iconY: CGFloat = isRound ? backgroundFrame.minY + floor((backgroundFrame.height - iconSize.height) / 2.0) : 1.0
+        transition.updateFrame(node: self.iconNode, frame: CGRect(origin: CGPoint(x: floor((size.width - iconSize.width) / 2.0), y: iconY), size: iconSize))
+        if let animatedIconView = self.animatedIcon?.view {
+            transition.updateFrame(view: animatedIconView, frame: CGRect(origin: CGPoint(x: floor((size.width - iconSize.width) / 2.0), y: iconY), size: iconSize))
+        }
+        // Hidden outright rather than faded: alpha alone left the caption visible.
+        self.textNode.isHidden = isRound
+        transition.updateFrameAdditiveToCenter(node: self.textNode, frame: CGRect(origin: CGPoint(x: floor((size.width - titleSize.width) / 2.0), y: size.height - titleSize.height - 9.0), size: titleSize))
+
+        self.referenceNode.frame = self.containerNode.bounds
     }
 
     /// Swaps the flat fill for a clear glass circle while round mode is on.
@@ -336,17 +347,5 @@ final class PeerInfoHeaderButtonNode: HighlightableButtonNode {
             tintColor: .init(kind: .clear),
             transition: ComponentTransition(transition)
         )
-        //self.backgroundNode.update(size: backgroundFrame.size, cornerRadius: min(11.0, backgroundFrame.height * 0.5), transition: transition)
-        //self.backgroundNode.updateColor(color: backgroundColor, transition: transition)
-        let iconY: CGFloat = isRound ? backgroundFrame.minY + floor((backgroundFrame.height - iconSize.height) / 2.0) : 1.0
-        transition.updateFrame(node: self.iconNode, frame: CGRect(origin: CGPoint(x: floor((size.width - iconSize.width) / 2.0), y: iconY), size: iconSize))
-        if let animatedIconView = self.animatedIcon?.view {
-            transition.updateFrame(view: animatedIconView, frame: CGRect(origin: CGPoint(x: floor((size.width - iconSize.width) / 2.0), y: iconY), size: iconSize))
-        }
-        // Hidden outright rather than faded: alpha alone left the caption visible.
-        self.textNode.isHidden = isRound
-        transition.updateFrameAdditiveToCenter(node: self.textNode, frame: CGRect(origin: CGPoint(x: floor((size.width - titleSize.width) / 2.0), y: size.height - titleSize.height - 9.0), size: titleSize))
-        
-        self.referenceNode.frame = self.containerNode.bounds
     }
 }
