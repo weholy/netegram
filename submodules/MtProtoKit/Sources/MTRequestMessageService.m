@@ -120,12 +120,29 @@
 
 - (void)addRequest:(MTRequest *)request
 {
+    // Netegram: ghost mode answers this call locally instead of sending it. The response is
+    // parsed and delivered exactly as a real one would be, so nothing above this layer has to
+    // know the difference — and, crucially, nothing is left waiting on a reply that would
+    // never come if the request were simply dropped.
+    if (request.netegramFakeData != nil && request.completed != nil && request.responseParser != nil) {
+        NSData *fakeData = request.netegramFakeData;
+        id result = request.responseParser(fakeData);
+        if (result != nil) {
+            MTRequestResponseInfo *info = [[MTRequestResponseInfo alloc] initWithNetworkType:1 timestamp:[[NSDate date] timeIntervalSince1970] duration:0.0];
+            request.completed(result, info, nil);
+            return;
+        }
+        // The parser rejected the fabricated response, which means the schema moved out from
+        // under the hardcoded bytes. Sending is the safe fallback: a visible status is better
+        // than a request that silently disappears.
+    }
+
     [_queue dispatchOnQueue:^
     {
         MTProto *mtProto = _mtProto;
         if (mtProto == nil)
             return;
-        
+
         if (![_requests containsObject:request])
         {
             if (MTLogEnabled()) {

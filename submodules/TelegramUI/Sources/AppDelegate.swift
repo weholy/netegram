@@ -647,7 +647,10 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             },
             autolockDeadine: autolockDeadine,
             encryptionProvider: OpenSSLEncryptionProvider(),
-            deviceModelName: nil,
+            // Netegram: the name this session is listed under on other devices. Read once, at
+            // connection setup — the value travels in initConnection, so a later change only
+            // shows up on the next launch.
+            deviceModelName: netegramCustomDeviceName(),
             useBetaFeatures: !buildConfig.isAppStoreBuild,
             isICloudEnabled: buildConfig.isICloudEnabled
         )

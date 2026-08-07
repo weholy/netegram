@@ -42,6 +42,11 @@
 @property (nonatomic, copy) bool (^shouldContinueExecutionWithErrorContext)(MTRequestErrorContext *errorContext);
 @property (nonatomic, copy) bool (^shouldDependOnRequest)(MTRequest *anotherRequest);
 
+/// Netegram: when set, this request is answered locally with the given serialised response
+/// and never sent. Filled in by MTNetegramGhost as the payload is attached. See
+/// MTNetegramGhost.h for why the interception has to happen at this layer.
+@property (nonatomic, strong) NSData *netegramFakeData;
+
 - (void)setPayload:(NSData *)payload metadata:(id)metadata shortMetadata:(id)shortMetadata responseParser:(id (^)(NSData *))responseParser;
 
 @end

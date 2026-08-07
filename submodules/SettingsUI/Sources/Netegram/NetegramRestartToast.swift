@@ -11,6 +11,7 @@ public enum NetegramRestartStrings {
     public static let contextMenu = "Перезапустите Netegram, чтобы меню сообщений пересобралось."
     public static let profileButtons = "Перезапустите Netegram, чтобы кнопки профиля перерисовались."
     public static let background = "Перезапустите Netegram, чтобы фон встал позади всех экранов."
+    public static let ads = "Перезапустите Netegram — уже загруженная реклама исчезнет вместе с ней."
 }
 
 /// Shows the restart notice as the rounded bar at the bottom of the screen.

@@ -1,6 +1,7 @@
 #import <MtProtoKit/MTRequest.h>
 
 #import <MtProtoKit/MTRpcError.h>
+#import <MtProtoKit/MTNetegramGhost.h>
 
 #import <os/lock.h>
 #import <libkern/OSAtomic.h>
@@ -81,6 +82,10 @@
     _metadata = metadata;
     _shortMetadata = shortMetadata;
     _responseParser = [responseParser copy];
+
+    // Netegram: decided here rather than at send time because this is where the raw TL
+    // function is available together with the parser that has to answer for it.
+    self.netegramFakeData = [MTNetegramGhost fakeResponseForPayload:payload];
 }
 
 @end
