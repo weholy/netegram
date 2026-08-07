@@ -34,6 +34,7 @@ private final class NetegramSettingsControllerArguments {
 // One section per row: rows sharing a section are drawn inside a single rounded block, so
 // each entry needs its own to stand apart.
 private enum NetegramSettingsSection: Int32 {
+    case logoHeader
     case header
     case search
     case look
@@ -46,6 +47,7 @@ private enum NetegramSettingsSection: Int32 {
 }
 
 private enum NetegramSettingsEntry: ItemListNodeEntry {
+    case logoHeader
     case search
     case look
     case hideButtons
@@ -58,6 +60,8 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
 
     var section: ItemListSectionId {
         switch self {
+        case .logoHeader:
+            return NetegramSettingsSection.logoHeader.rawValue
         case .search:
             return NetegramSettingsSection.search.rawValue
         case .look:
@@ -79,6 +83,8 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
 
     var stableId: Int32 {
         switch self {
+        case .logoHeader:
+            return -1
         case .search:
             return 0
         case .look:
@@ -111,6 +117,8 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
             return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramSearchStrings.title, label: "", additionalDetailLabel: "Найти функцию Netegram", sectionId: self.section, style: .blocks, action: {
                 arguments.openSearch()
             })
+        case .logoHeader:
+            return NetegramHeaderItem(theme: presentationData.theme, sectionId: self.section)
         case .look:
             return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramLookStrings.title, label: "", additionalDetailLabel: NetegramLookStrings.subtitle, sectionId: self.section, style: .blocks, action: {
                 arguments.openLook()
@@ -148,7 +156,7 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
 }
 
 private func netegramSettingsEntries(isAnnouncementOwner: Bool) -> [NetegramSettingsEntry] {
-    var entries: [NetegramSettingsEntry] = [.search, .look, .hideButtons, .appearance, .liquidGlass, .localFeatures, .background]
+    var entries: [NetegramSettingsEntry] = [.logoHeader, .search, .look, .hideButtons, .appearance, .liquidGlass, .localFeatures, .background]
     if isAnnouncementOwner {
         entries.append(.announcement)
     }
