@@ -12,16 +12,19 @@ import AccountContext
 private final class NetegramAppearanceControllerArguments {
     let updateUseOriginalLogo: (Bool) -> Void
     let updateCustomIcons: (Bool) -> Void
+    let updateContextRedesign: (Bool) -> Void
 
-    init(updateUseOriginalLogo: @escaping (Bool) -> Void, updateCustomIcons: @escaping (Bool) -> Void) {
+    init(updateUseOriginalLogo: @escaping (Bool) -> Void, updateCustomIcons: @escaping (Bool) -> Void, updateContextRedesign: @escaping (Bool) -> Void) {
         self.updateUseOriginalLogo = updateUseOriginalLogo
         self.updateCustomIcons = updateCustomIcons
+        self.updateContextRedesign = updateContextRedesign
     }
 }
 
 private enum NetegramAppearanceSection: Int32 {
     case logo
     case customIcons
+    case contextRedesign
 }
 
 private enum NetegramAppearanceEntry: ItemListNodeEntry {
@@ -29,6 +32,8 @@ private enum NetegramAppearanceEntry: ItemListNodeEntry {
     case replaceLogoFooter
     case customIcons(Bool)
     case customIconsFooter
+    case contextRedesign(Bool)
+    case contextRedesignFooter
 
     var section: ItemListSectionId {
         switch self {
@@ -36,6 +41,8 @@ private enum NetegramAppearanceEntry: ItemListNodeEntry {
             return NetegramAppearanceSection.logo.rawValue
         case .customIcons, .customIconsFooter:
             return NetegramAppearanceSection.customIcons.rawValue
+        case .contextRedesign, .contextRedesignFooter:
+            return NetegramAppearanceSection.contextRedesign.rawValue
         }
     }
 
@@ -49,6 +56,10 @@ private enum NetegramAppearanceEntry: ItemListNodeEntry {
             return 2
         case .customIconsFooter:
             return 3
+        case .contextRedesign:
+            return 4
+        case .contextRedesignFooter:
+            return 5
         }
     }
 
@@ -71,16 +82,24 @@ private enum NetegramAppearanceEntry: ItemListNodeEntry {
             })
         case .customIconsFooter:
             return ItemListTextItem(presentationData: presentationData, text: .plain(NetegramStrings.customIconsFooter), sectionId: self.section)
+        case let .contextRedesign(value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: NetegramLookStrings.contextRedesignTitle, value: value, sectionId: self.section, style: .blocks, updated: { value in
+                arguments.updateContextRedesign(value)
+            })
+        case .contextRedesignFooter:
+            return ItemListTextItem(presentationData: presentationData, text: .plain(NetegramLookStrings.contextRedesignFooter), sectionId: self.section)
         }
     }
 }
 
-private func netegramAppearanceControllerEntries(useOriginalLogo: Bool, customIcons: Bool) -> [NetegramAppearanceEntry] {
+private func netegramAppearanceControllerEntries(useOriginalLogo: Bool, customIcons: Bool, contextRedesign: Bool) -> [NetegramAppearanceEntry] {
     return [
         .replaceLogo(useOriginalLogo),
         .replaceLogoFooter,
         .customIcons(customIcons),
-        .customIconsFooter
+        .customIconsFooter,
+        .contextRedesign(contextRedesign),
+        .contextRedesignFooter
     ]
 }
 
@@ -99,15 +118,20 @@ public func netegramAppearanceController(context: AccountContext) -> ViewControl
         // The rendered icons are memoised, so the cache has to be dropped for the settings
         // list to pick up the other set.
         netegramInvalidateSettingsIconCache()
+    }, updateContextRedesign: { value in
+        NetegramLookPreferences.shared.setContextRedesign(value)
     })
 
+    // Mirrored from the "Внешний вид" screen: both write the same preference, so the switch
+    // reads the same way wherever it is shown.
     let signal = combineLatest(queue: .mainQueue(),
         context.sharedContext.presentationData,
         NetegramSettings.shared.useOriginalTelegramLogoSignal,
-        NetegramSettings.shared.customSettingsIconsSignal
+        NetegramSettings.shared.customSettingsIconsSignal,
+        NetegramLookPreferences.shared.signal
     )
     |> deliverOnMainQueue
-    |> map { presentationData, useOriginalLogo, customIcons -> (ItemListControllerState, (ItemListNodeState, Any)) in
+    |> map { presentationData, useOriginalLogo, customIcons, lookSettings -> (ItemListControllerState, (ItemListNodeState, Any)) in
         let controllerState = ItemListControllerState(
             presentationData: ItemListPresentationData(presentationData),
             title: .text(NetegramStrings.appearance),
@@ -117,7 +141,7 @@ public func netegramAppearanceController(context: AccountContext) -> ViewControl
         )
         let listState = ItemListNodeState(
             presentationData: ItemListPresentationData(presentationData),
-            entries: netegramAppearanceControllerEntries(useOriginalLogo: useOriginalLogo, customIcons: customIcons),
+            entries: netegramAppearanceControllerEntries(useOriginalLogo: useOriginalLogo, customIcons: customIcons, contextRedesign: lookSettings.contextRedesign),
             style: .blocks,
             animateChanges: false
         )
