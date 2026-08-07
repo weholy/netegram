@@ -418,6 +418,13 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         // outlives every controller swap below.
         NetegramStatusBadgeView.install(in: window)
 
+        // Netegram: photo or video behind every screen. Installed before the root controller
+        // fills the container, and the container's own fill is dropped so it shows through —
+        // the page colours are cleared in PresentationTheme for the same reason.
+        if NetegramAppBackgroundView.install(in: hostView.containerView) {
+            hostView.containerView.backgroundColor = .clear
+        }
+
         hostView.containerView.layer.addSublayer(MetalEngine.shared.rootLayer)
         
         if !UIDevice.current.isBatteryMonitoringEnabled {

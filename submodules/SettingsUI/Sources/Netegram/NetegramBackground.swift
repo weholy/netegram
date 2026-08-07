@@ -17,9 +17,6 @@ public enum NetegramBackgroundStrings {
     public static let photoFooter = "Изображение позади всех экранов. Расходует заметно меньше батареи, чем видео."
     public static let choose = "Выбрать из галереи"
     public static let chosen = "Выбрано"
-    public static let restartTitle = "Требуется перезапуск"
-    public static let restartText = "Закройте приложение полностью и откройте снова, чтобы фон применился ко всем экранам."
-    public static let ok = "Понятно"
 }
 
 private let backgroundModeKey = "netegram.background.mode"
@@ -83,14 +80,97 @@ public final class NetegramBackgroundSettings {
     }
 }
 
+// MARK: - Picking the media
+
+/// Holds the picker's delegate alive.
+///
+/// UIImagePickerController keeps only a weak reference to its delegate, so without this the
+/// delegate is released the moment the presenting call returns and the picked file is lost.
+private final class NetegramBackgroundPicker: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+    private static var current: NetegramBackgroundPicker?
+
+    private let completion: (String?) -> Void
+
+    private init(completion: @escaping (String?) -> Void) {
+        self.completion = completion
+    }
+
+    static func present(window: Window1?, mode: NetegramBackgroundMode, completion: @escaping (String?) -> Void) {
+        guard let window else {
+            completion(nil)
+            return
+        }
+        let picker = UIImagePickerController()
+        picker.sourceType = .photoLibrary
+        picker.mediaTypes = mode == .video ? ["public.movie"] : ["public.image"]
+        // Editing would hand back a cropped copy in a temporary location; the background is
+        // drawn aspect-filled anyway, so the original is what we want.
+        picker.allowsEditing = false
+
+        let delegate = NetegramBackgroundPicker(completion: completion)
+        NetegramBackgroundPicker.current = delegate
+        picker.delegate = delegate
+
+        window.presentNative(picker)
+    }
+
+    private func finish(_ picker: UIImagePickerController, fileName: String?) {
+        picker.presentingViewController?.dismiss(animated: true)
+        NetegramBackgroundPicker.current = nil
+        self.completion(fileName)
+    }
+
+    func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+        self.finish(picker, fileName: nil)
+    }
+
+    func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+        let sourceURL = (info[.mediaURL] as? URL) ?? (info[.imageURL] as? URL)
+        guard let sourceURL else {
+            self.finish(picker, fileName: nil)
+            return
+        }
+        self.finish(picker, fileName: netegramStoreBackgroundMedia(from: sourceURL))
+    }
+}
+
+/// Copies the picked file into the app's documents directory and returns its file name.
+///
+/// Only the name is stored: the app container is re-rooted on every reinstall, so an absolute
+/// path saved today stops resolving tomorrow. The name carries a timestamp because the
+/// renderer caches by path — reusing one name would keep showing the previous file.
+private func netegramStoreBackgroundMedia(from sourceURL: URL) -> String? {
+    guard let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+        return nil
+    }
+
+    let previous = NetegramBackgroundSettings.current().path
+    if !previous.isEmpty {
+        try? FileManager.default.removeItem(at: documents.appendingPathComponent(previous))
+    }
+
+    let fileExtension = sourceURL.pathExtension.isEmpty ? "dat" : sourceURL.pathExtension
+    let fileName = "netegram-background-\(Int(Date().timeIntervalSince1970)).\(fileExtension)"
+    do {
+        try FileManager.default.copyItem(at: sourceURL, to: documents.appendingPathComponent(fileName))
+    } catch {
+        return nil
+    }
+    return fileName
+}
+
+private func netegramPickBackgroundMedia(context: AccountContext, mode: NetegramBackgroundMode, completion: @escaping (String?) -> Void) {
+    NetegramBackgroundPicker.present(window: context.sharedContext.mainWindow, mode: mode, completion: completion)
+}
+
 // MARK: - Screen
 
 private final class NetegramBackgroundArguments {
     let updateVideo: (Bool) -> Void
     let updatePhoto: (Bool) -> Void
-    let choose: () -> Void
+    let choose: (NetegramBackgroundMode) -> Void
 
-    init(updateVideo: @escaping (Bool) -> Void, updatePhoto: @escaping (Bool) -> Void, choose: @escaping () -> Void) {
+    init(updateVideo: @escaping (Bool) -> Void, updatePhoto: @escaping (Bool) -> Void, choose: @escaping (NetegramBackgroundMode) -> Void) {
         self.updateVideo = updateVideo
         self.updatePhoto = updatePhoto
         self.choose = choose
@@ -100,24 +180,23 @@ private final class NetegramBackgroundArguments {
 private enum NetegramBackgroundSection: Int32 {
     case video
     case photo
-    case media
 }
 
 private enum NetegramBackgroundEntry: ItemListNodeEntry {
     case video(Bool)
+    case chooseVideo(String)
     case videoFooter
     case photo(Bool)
+    case choosePhoto(String)
     case photoFooter
-    case choose(String)
 
+    /// The picker row shares its toggle's section so the two are drawn in one rounded block.
     var section: ItemListSectionId {
         switch self {
-        case .video, .videoFooter:
+        case .video, .chooseVideo, .videoFooter:
             return NetegramBackgroundSection.video.rawValue
-        case .photo, .photoFooter:
+        case .photo, .choosePhoto, .photoFooter:
             return NetegramBackgroundSection.photo.rawValue
-        case .choose:
-            return NetegramBackgroundSection.media.rawValue
         }
     }
 
@@ -125,14 +204,16 @@ private enum NetegramBackgroundEntry: ItemListNodeEntry {
         switch self {
         case .video:
             return 0
-        case .videoFooter:
+        case .chooseVideo:
             return 1
-        case .photo:
+        case .videoFooter:
             return 2
-        case .photoFooter:
+        case .photo:
             return 3
-        case .choose:
+        case .choosePhoto:
             return 4
+        case .photoFooter:
+            return 5
         }
     }
 
@@ -155,25 +236,32 @@ private enum NetegramBackgroundEntry: ItemListNodeEntry {
             })
         case .photoFooter:
             return ItemListTextItem(presentationData: presentationData, text: .plain(NetegramBackgroundStrings.photoFooter), sectionId: self.section)
-        case let .choose(current):
+        case let .chooseVideo(current):
             return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramBackgroundStrings.choose, label: current, sectionId: self.section, style: .blocks, action: {
-                arguments.choose()
+                arguments.choose(.video)
+            })
+        case let .choosePhoto(current):
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramBackgroundStrings.choose, label: current, sectionId: self.section, style: .blocks, action: {
+                arguments.choose(.photo)
             })
         }
     }
 }
 
-/// The picker row only appears once a mode is on, so it slides in and out with the toggle.
+/// The picker row only appears once a mode is on, and directly under the toggle that turned
+/// it on — the two belong to the same decision, so they read as one block.
 private func netegramBackgroundEntries(state: NetegramBackgroundState) -> [NetegramBackgroundEntry] {
-    var entries: [NetegramBackgroundEntry] = [
-        .video(state.mode == .video),
-        .videoFooter,
-        .photo(state.mode == .photo),
-        .photoFooter
-    ]
-    if state.mode != .none {
-        entries.append(.choose(state.hasMedia ? NetegramBackgroundStrings.chosen : ""))
+    let label = state.hasMedia ? NetegramBackgroundStrings.chosen : ""
+    var entries: [NetegramBackgroundEntry] = [.video(state.mode == .video)]
+    if state.mode == .video {
+        entries.append(.chooseVideo(label))
     }
+    entries.append(.videoFooter)
+    entries.append(.photo(state.mode == .photo))
+    if state.mode == .photo {
+        entries.append(.choosePhoto(label))
+    }
+    entries.append(.photoFooter)
     return entries
 }
 
@@ -182,11 +270,24 @@ public func netegramBackgroundController(context: AccountContext) -> ViewControl
 
     let arguments = NetegramBackgroundArguments(updateVideo: { value in
         NetegramBackgroundSettings.shared.setMode(value ? .video : .none)
+        // Only worth mentioning a restart when there is actually something to draw.
+        if NetegramBackgroundSettings.current().hasMedia {
+            presentRestartImpl?()
+        }
     }, updatePhoto: { value in
         // Only one background layer is drawn, so enabling one mode disables the other.
         NetegramBackgroundSettings.shared.setMode(value ? .photo : .none)
-    }, choose: {
-        presentRestartImpl?()
+        if NetegramBackgroundSettings.current().hasMedia {
+            presentRestartImpl?()
+        }
+    }, choose: { mode in
+        netegramPickBackgroundMedia(context: context, mode: mode, completion: { fileName in
+            guard let fileName else {
+                return
+            }
+            NetegramBackgroundSettings.shared.setPath(fileName)
+            presentRestartImpl?()
+        })
     })
 
     let signal = combineLatest(queue: .mainQueue(),
@@ -214,15 +315,7 @@ public func netegramBackgroundController(context: AccountContext) -> ViewControl
 
     let controller = ItemListController(context: context, state: signal)
     presentRestartImpl = { [weak controller] in
-        guard let controller else {
-            return
-        }
-        controller.present(
-            textAlertController(context: context, title: NetegramBackgroundStrings.restartTitle, text: NetegramBackgroundStrings.restartText, actions: [
-                TextAlertAction(type: .defaultAction, title: NetegramBackgroundStrings.ok, action: {})
-            ]),
-            in: .window(.root)
-        )
+        netegramPresentRestartToast(context: context, controller: controller, text: NetegramRestartStrings.background)
     }
     return controller
 }

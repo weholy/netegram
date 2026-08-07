@@ -515,9 +515,10 @@ public final class PresentationThemeList {
         itemInputField: PresentationInputFieldTheme,
         paymentOption: PaymentOption
     ) {
-        self.blocksBackgroundColor = blocksBackgroundColor
+        // Netegram: cleared while an app background is set, so it shows through the page.
+        self.blocksBackgroundColor = netegramPageBackground(blocksBackgroundColor)
         self.modalBlocksBackgroundColor = modalBlocksBackgroundColor
-        self.plainBackgroundColor = plainBackgroundColor
+        self.plainBackgroundColor = netegramPageBackground(plainBackgroundColor)
         self.modalPlainBackgroundColor = modalPlainBackgroundColor
         self.itemPrimaryTextColor = itemPrimaryTextColor
         self.itemSecondaryTextColor = itemSecondaryTextColor
@@ -655,7 +656,8 @@ public final class PresentationThemeChatList {
         storyUnseenPrivateColors: PresentationThemeGradientColors,
         storySeenColors: PresentationThemeGradientColors
     ) {
-        self.backgroundColor = backgroundColor
+        // Netegram: cleared while an app background is set, so it shows through the list.
+        self.backgroundColor = netegramPageBackground(backgroundColor)
         self.itemSeparatorColor = itemSeparatorColor
         self.itemBackgroundColor = itemBackgroundColor
         self.pinnedItemBackgroundColor = pinnedItemBackgroundColor
@@ -826,6 +828,46 @@ func netegramTranslucentBubbleFill(_ fill: [UIColor]) -> [UIColor] {
         return fill
     }
     return fill.map { $0.withAlphaComponent(0.45) }
+}
+
+/// Netegram: true while a photo or video app background is set up.
+///
+/// Keys are mirrored from NetegramBackground for the same reason as above.
+private final class NetegramAppBackgroundPreference {
+    static let shared = NetegramAppBackgroundPreference()
+
+    private(set) var isActive: Bool = false
+
+    private init() {
+        self.reload()
+        NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification,
+            object: nil,
+            queue: .main,
+            using: { [weak self] _ in
+                self?.reload()
+            }
+        )
+    }
+
+    private func reload() {
+        let defaults = UserDefaults.standard
+        let hasMedia = !(defaults.string(forKey: "netegram.background.path") ?? "").isEmpty
+        self.isActive = defaults.integer(forKey: "netegram.background.mode") != 0 && hasMedia
+    }
+}
+
+/// Clears the page surfaces so the app background shows through.
+///
+/// Applied inside the theme initialisers rather than at each call site: every list and chat
+/// list colour set is built through them, so one hook covers the whole app. Only the flat
+/// page fills go — rows, separators and text keep their colours, otherwise the interface
+/// would dissolve into the background instead of floating above it.
+func netegramPageBackground(_ color: UIColor) -> UIColor {
+    guard NetegramAppBackgroundPreference.shared.isActive else {
+        return color
+    }
+    return .clear
 }
 
 public final class PresentationThemeBubbleColorComponents {
