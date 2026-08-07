@@ -413,7 +413,11 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         }
         self.window = window
         self.nativeWindow = window
-        
+
+        // Netegram: branded pill over the Dynamic Island. Added straight to the window so it
+        // outlives every controller swap below.
+        NetegramStatusBadgeView.install(in: window)
+
         hostView.containerView.layer.addSublayer(MetalEngine.shared.rootLayer)
         
         if !UIDevice.current.isBatteryMonitoringEnabled {
