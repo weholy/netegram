@@ -7,6 +7,19 @@ import Display
 import TelegramPresentationData
 import ComponentFlow
 import LottieComponent
+import GlassBackgroundComponent
+
+/// Netegram: glass circle behind a round profile button.
+///
+/// Added as a sibling under the flat background view rather than replacing it, so the
+/// original look returns untouched when the toggle goes off.
+private final class NetegramButtonGlass {
+    static func makeView() -> GlassBackgroundView {
+        let view = GlassBackgroundView(frame: CGRect())
+        view.isUserInteractionEnabled = false
+        return view
+    }
+}
 
 enum PeerInfoHeaderButtonKey: Hashable {
     case message
@@ -53,6 +66,8 @@ final class PeerInfoHeaderButtonNode: HighlightableButtonNode {
     
     let backgroundContainerView: UIView
     let backgroundView: UIView
+    /// Netegram: glass circle shown instead of the flat fill in round mode.
+    private var netegramGlassView: GlassBackgroundView?
     
     init(key: PeerInfoHeaderButtonKey, action: @escaping (PeerInfoHeaderButtonNode, ContextGesture?) -> Void) {
         self.key = key
@@ -287,6 +302,40 @@ final class PeerInfoHeaderButtonNode: HighlightableButtonNode {
         } else {
             transition.updateCornerRadius(layer: self.backgroundView.layer, cornerRadius: min(16.0, backgroundFrame.height * 0.5))
         }
+        self.updateNetegramGlass(isRound: isRound, frame: backgroundFrame, transition: transition)
+    }
+
+    /// Swaps the flat fill for a clear glass circle while round mode is on.
+    private func updateNetegramGlass(isRound: Bool, frame: CGRect, transition: ContainedViewLayoutTransition) {
+        guard isRound else {
+            if let glassView = self.netegramGlassView {
+                glassView.removeFromSuperview()
+                self.netegramGlassView = nil
+            }
+            self.backgroundView.isHidden = false
+            return
+        }
+
+        let glassView: GlassBackgroundView
+        if let current = self.netegramGlassView {
+            glassView = current
+        } else {
+            glassView = NetegramButtonGlass.makeView()
+            self.backgroundContainerView.insertSubview(glassView, belowSubview: self.backgroundView)
+            self.netegramGlassView = glassView
+        }
+
+        // The flat fill would sit on top of the glass and hide it entirely.
+        self.backgroundView.isHidden = true
+
+        transition.updateFrame(view: glassView, frame: frame)
+        glassView.update(
+            size: frame.size,
+            cornerRadius: frame.height * 0.5,
+            isDark: true,
+            tintColor: .init(kind: .clear),
+            transition: ComponentTransition(transition)
+        )
         //self.backgroundNode.update(size: backgroundFrame.size, cornerRadius: min(11.0, backgroundFrame.height * 0.5), transition: transition)
         //self.backgroundNode.updateColor(color: backgroundColor, transition: transition)
         let iconY: CGFloat = isRound ? backgroundFrame.minY + floor((backgroundFrame.height - iconSize.height) / 2.0) : 1.0

@@ -1288,24 +1288,48 @@ extension PeerInfoScreenNode {
                         }
                         let context = self.context
                         let parentController = self.controller
+                        let presentationData = self.presentationData
 
                         var subItems: [ContextMenuItem] = []
-                        for kind in [NetegramPeerToolKind.ratingStars, .ratingLevel, .username] {
-                            subItems.append(.action(ContextMenuActionItem(text: kind.title, icon: { _ in
+
+                        // The star count is what drives the level, so offering both was
+                        // just two ways to set the same thing.
+                        subItems.append(.action(ContextMenuActionItem(text: NetegramPeerToolKind.ratingLevel.title, icon: { _ in
+                            return nil
+                        }, action: { _, f in
+                            f(.dismissWithoutContent)
+                            guard let parentController else {
+                                return
+                            }
+                            netegramPresentPeerToolPrompt(context: context, peerId: peerIdForTools, kind: .ratingLevel, parentController: parentController)
+                        })))
+
+                        // Setting and clearing are opposite states, so only one of them can
+                        // apply to a given peer at a time.
+                        if netegramCurrentLocalUsername(for: peerIdForTools) != nil {
+                            subItems.append(.action(ContextMenuActionItem(text: NetegramPeerToolsStrings.usernameReset, textColor: .destructive, icon: { _ in
+                                return nil
+                            }, action: { _, f in
+                                f(.dismissWithoutContent)
+                                netegramResetLocalUsername(for: peerIdForTools)
+                            })))
+                        } else {
+                            subItems.append(.action(ContextMenuActionItem(text: NetegramPeerToolKind.username.title, icon: { _ in
                                 return nil
                             }, action: { _, f in
                                 f(.dismissWithoutContent)
                                 guard let parentController else {
                                     return
                                 }
-                                netegramPresentPeerToolPrompt(context: context, peerId: peerIdForTools, kind: kind, parentController: parentController)
+                                netegramPresentPeerToolPrompt(context: context, peerId: peerIdForTools, kind: .username, parentController: parentController)
                             })))
                         }
-                        subItems.append(.action(ContextMenuActionItem(text: NetegramPeerToolsStrings.usernameReset, textColor: .destructive, icon: { _ in
-                            return nil
-                        }, action: { _, f in
-                            f(.dismissWithoutContent)
-                            netegramResetLocalUsername(for: peerIdForTools)
+
+                        subItems.append(.separator)
+                        subItems.append(.action(ContextMenuActionItem(text: presentationData.strings.Common_Back, icon: { theme in
+                            return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Back"), color: theme.contextMenu.primaryColor)
+                        }, iconPosition: .left, action: { c, _ in
+                            c?.popItems()
                         })))
 
                         c?.pushItems(items: .single(ContextController.Items(content: .list(subItems))))

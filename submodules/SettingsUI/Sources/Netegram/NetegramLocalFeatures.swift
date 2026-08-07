@@ -273,14 +273,22 @@ private enum NetegramLocalFeaturesEntry: ItemListNodeEntry {
             return ItemListSingleLineInputItem(
                 context: arguments.context,
                 presentationData: presentationData,
+                // .glass gives the rounded field instead of the flat legacy one, and
+                // .always keeps the clear button visible whenever there is text.
+                systemStyle: .glass,
                 title: NSAttributedString(string: ""),
                 text: value,
                 placeholder: NetegramLocalStrings.localUsernameField,
+                type: .username,
+                clearType: .always,
                 sectionId: self.section,
                 textUpdated: { value in
                     arguments.updateUsername(value)
                 },
-                action: {}
+                action: {},
+                cleared: {
+                    arguments.updateUsername("")
+                }
             )
         case .localUsernameFooter:
             return ItemListTextItem(presentationData: presentationData, text: .plain(NetegramLocalStrings.localUsernameFooter), sectionId: self.section)

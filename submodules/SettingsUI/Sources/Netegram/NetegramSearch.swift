@@ -165,14 +165,19 @@ private enum NetegramSearchEntry: ItemListNodeEntry {
             return ItemListSingleLineInputItem(
                 context: arguments.context,
                 presentationData: presentationData,
+                systemStyle: .glass,
                 title: NSAttributedString(string: ""),
                 text: value,
                 placeholder: NetegramSearchStrings.placeholder,
+                clearType: .always,
                 sectionId: self.section,
                 textUpdated: { value in
                     arguments.updateQuery(value)
                 },
-                action: {}
+                action: {},
+                cleared: {
+                    arguments.updateQuery("")
+                }
             )
         case let .result(index, _, title, breadcrumb):
             return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: title, label: "", additionalDetailLabel: breadcrumb, sectionId: self.section, style: .blocks, action: {
