@@ -64,8 +64,35 @@ func netegramApplyContextRedesign(actions: [ContextMenuItem], selectTitle: Strin
     }
 
     quickActions.sort(by: { $0.rank < $1.rank })
+    remaining = netegramCollapseSeparators(remaining)
     remaining.insert(.custom(ChatNetegramQuickActionsContextItem(actions: quickActions.map { $0.action }), false), at: 0)
     return remaining
+}
+
+/// Drops separators that no longer divide anything.
+///
+/// The menu is assembled with dividers around "Select", "Copy" and "Delete"; once those move
+/// to the top row the dividers are left stranded, drawing one or two hairlines with nothing
+/// between them — including a trailing one under the last action. How many appear depends on
+/// which actions the chat offers, which is why the count varies.
+private func netegramCollapseSeparators(_ items: [ContextMenuItem]) -> [ContextMenuItem] {
+    var result: [ContextMenuItem] = []
+    for item in items {
+        if case .separator = item {
+            // Nothing above it yet, or the previous entry is a separator too.
+            guard let last = result.last else {
+                continue
+            }
+            if case .separator = last {
+                continue
+            }
+        }
+        result.append(item)
+    }
+    if let last = result.last, case .separator = last {
+        result.removeLast()
+    }
+    return result
 }
 
 /// One button of the top row: an icon above a caption.
