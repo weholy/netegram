@@ -96,13 +96,13 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
         case .liquidGlass:
             return 4
         case .localFeatures:
-            return 3
-        case .background:
-            return 4
-        case .announcement:
             return 5
-        case .appearanceFooter:
+        case .background:
             return 6
+        case .announcement:
+            return 7
+        case .appearanceFooter:
+            return 8
         }
     }
 
@@ -155,13 +155,42 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
     }
 }
 
-private func netegramSettingsEntries(isAnnouncementOwner: Bool) -> [NetegramSettingsEntry] {
-    var entries: [NetegramSettingsEntry] = [.logoHeader, .search, .look, .hideButtons, .appearance, .liquidGlass, .localFeatures, .background]
-    if isAnnouncementOwner {
-        entries.append(.announcement)
+/// Rows offered to everyone. The rest of the screen is build-owner only — those features are
+/// either unfinished or specific to how this build is put together.
+private let netegramPublicEntries: [NetegramSettingsEntry] = [.logoHeader, .hideButtons, .appearance, .localFeatures]
+
+private func netegramSettingsEntries(isOwner: Bool) -> [NetegramSettingsEntry] {
+    guard isOwner else {
+        return netegramPublicEntries
     }
-    return entries
+    return [.logoHeader, .search, .look, .hideButtons, .appearance, .liquidGlass, .localFeatures, .background, .announcement]
 }
+
+/// Netegram: the account this build belongs to.
+///
+/// Three ways to match, because none of them is reliable on its own — the peer id is empty
+/// until the account loads, the username can be changed, and the phone number is hidden on
+/// some accounts. Any one hit is enough.
+public func netegramIsBuildOwner(peer: EnginePeer?) -> Bool {
+    guard let peer else {
+        return false
+    }
+    if peer.id.id._internalGetInt64Value() == netegramAnnouncementOwnerId {
+        return true
+    }
+    if let username = peer.addressName, username.lowercased() == netegramOwnerUsername {
+        return true
+    }
+    if case let .user(user) = peer, let phone = user.phone {
+        if phone.filter({ $0.isNumber }) == netegramOwnerPhone {
+            return true
+        }
+    }
+    return false
+}
+
+private let netegramOwnerUsername = "detarlo"
+private let netegramOwnerPhone = "79809334541"
 
 public func netegramSettingsController(context: AccountContext) -> ViewController {
     var pushControllerImpl: ((ViewController) -> Void)?
@@ -184,12 +213,20 @@ public func netegramSettingsController(context: AccountContext) -> ViewControlle
         pushControllerImpl?(netegramAnnouncementController(context: context))
     })
 
-    // The announcement editor is only offered to the build owner.
-    let isAnnouncementOwner = context.account.peerId.id._internalGetInt64Value() == netegramAnnouncementOwnerId
+    let ownerSignal = context.engine.data.subscribe(
+        TelegramEngine.EngineData.Item.Peer.Peer(id: context.account.peerId)
+    )
+    |> map { peer -> Bool in
+        return netegramIsBuildOwner(peer: peer)
+    }
+    |> distinctUntilChanged
 
-    let signal = context.sharedContext.presentationData
+    let signal = combineLatest(queue: .mainQueue(),
+        context.sharedContext.presentationData,
+        ownerSignal
+    )
     |> deliverOnMainQueue
-    |> map { presentationData -> (ItemListControllerState, (ItemListNodeState, Any)) in
+    |> map { presentationData, isOwner -> (ItemListControllerState, (ItemListNodeState, Any)) in
         let controllerState = ItemListControllerState(
             presentationData: ItemListPresentationData(presentationData),
             title: .text(NetegramStrings.netegram),
@@ -199,7 +236,7 @@ public func netegramSettingsController(context: AccountContext) -> ViewControlle
         )
         let listState = ItemListNodeState(
             presentationData: ItemListPresentationData(presentationData),
-            entries: netegramSettingsEntries(isAnnouncementOwner: isAnnouncementOwner),
+            entries: netegramSettingsEntries(isOwner: isOwner),
             style: .blocks,
             animateChanges: false
         )
