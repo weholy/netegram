@@ -24,6 +24,33 @@ func convertFrame(_ frame: CGRect, from fromView: UIView, to toView: UIView) -> 
     return targetWindowFrame
 }
 
+/// Netegram: caches the "message long-press redesign" preference.
+///
+/// The key is mirrored in NetegramLook — this module cannot import SettingsUI, which already
+/// depends on it. Cached in memory because a context menu is built on the main thread while
+/// the long-press gesture is still resolving.
+private final class NetegramContextBlurPreference {
+    static let shared = NetegramContextBlurPreference()
+
+    private(set) var redesign: Bool = false
+
+    private init() {
+        self.reload()
+        NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification,
+            object: nil,
+            queue: .main,
+            using: { [weak self] _ in
+                self?.reload()
+            }
+        )
+    }
+
+    private func reload() {
+        self.redesign = UserDefaults.standard.bool(forKey: "netegram.look.contextRedesign")
+    }
+}
+
 final class ContextControllerNode: ViewControllerTracingNode, ASScrollViewDelegate {
     private weak var controller: ContextControllerImpl?
     private let context: AccountContext?
@@ -83,7 +110,10 @@ final class ContextControllerNode: ViewControllerTracingNode, ASScrollViewDelega
     private let itemsDisposable = MetaDisposable()
     
     private let blurBackground: Bool
-    
+    /// Netegram: the redesigned long-press menu drops the zoom-blur behind the menu and keeps
+    /// only the dim, so the chat stays readable. Captured at init so it cannot flip mid-menu.
+    private let netegramNoBlur: Bool
+
     var overlayWantsToBeBelowKeyboard: Bool {
         guard let sourceContainer = self.sourceContainer else {
             return false
@@ -159,6 +189,8 @@ final class ContextControllerNode: ViewControllerTracingNode, ASScrollViewDelega
         var feedbackTap: (() -> Void)?
         var updateLayout: (() -> Void)?
         
+        self.netegramNoBlur = NetegramContextBlurPreference.shared.redesign
+
         var blurBackground = true
         if let mainSource = configuration.sources.first(where: { $0.id == configuration.initialId }) {
             if case .reference = mainSource.source {
@@ -192,7 +224,9 @@ final class ContextControllerNode: ViewControllerTracingNode, ASScrollViewDelega
         self.scrollNode.view.delegate = self.wrappedScrollViewDelegate
         
         if blurBackground {
-            self.view.addSubview(self.effectView)
+            if !self.netegramNoBlur {
+                self.view.addSubview(self.effectView)
+            }
             self.addSubnode(self.dimNode)
             self.addSubnode(self.withoutBlurDimNode)
         }
@@ -1260,6 +1294,15 @@ final class ContextControllerNode: ViewControllerTracingNode, ASScrollViewDelega
 
         switch layout.metrics.widthClass {
         case .compact:
+            if self.netegramNoBlur {
+                // Same treatment the regular width class already uses: plain dim, no blur.
+                if self.effectView.superview != nil {
+                    self.effectView.removeFromSuperview()
+                }
+                self.dimNode.isHidden = true
+                self.withoutBlurDimNode.isHidden = false
+                break
+            }
             if case .reference = self.legacySource {
             } else if case let .extracted(extractedSource) = self.legacySource, !extractedSource.blurBackground {
             } else if self.effectView.superview == nil {
