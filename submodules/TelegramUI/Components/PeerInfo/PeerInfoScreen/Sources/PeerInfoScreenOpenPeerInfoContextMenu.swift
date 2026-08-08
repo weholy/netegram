@@ -9,6 +9,7 @@ import UndoUI
 import TranslateUI
 import TextProcessingScreen
 import Pasteboard
+import PromptUI
 import ChatRichTextEditorComposer
 import TelegramStringFormatting
 import TelegramUIPreferences
@@ -70,6 +71,43 @@ extension PeerInfoScreenNode {
                         self?.controller?.present(UndoOverlayController(presentationData: presentationData, content: .copy(text: presentationData.strings.Conversation_TextCopied), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false }), in: .current)
                     })]
                     
+                    // Netegram: replacing a description with your own note, on this device only.
+                    // This menu is the old flat kind - it has no nested lists, unlike the message
+                    // menu - so the entry opens a sheet of its own instead of pushing a submenu.
+                    let netegramPeerId = peer.id
+                    let hasLocalBio = NetegramLocalBio.value(peerId: netegramPeerId) != nil
+                    actions.append(ContextMenuAction(content: .text(title: "Netegram", accessibilityLabel: "Netegram"), action: { [weak self] in
+                        guard let self, let controller = self.controller else {
+                            return
+                        }
+                        let actionSheet = ActionSheetController(presentationData: presentationData)
+                        var sheetItems: [ActionSheetItem] = []
+                        if hasLocalBio {
+                            // Destructive styling because it throws away what you typed, and the
+                            // real description comes back in its place.
+                            sheetItems.append(ActionSheetButtonItem(title: "Сбросить", color: .destructive, action: { [weak actionSheet] in
+                                actionSheet?.dismissAnimated()
+                                NetegramLocalBio.clear(peerId: netegramPeerId)
+                                self.controller?.present(UndoOverlayController(presentationData: presentationData, content: .info(title: nil, text: "Описание вернулось к настоящему. Перезапустите Netegram, чтобы обновить экран.", timeout: nil, customUndoText: nil), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false }), in: .current)
+                            }))
+                        } else {
+                            sheetItems.append(ActionSheetButtonItem(title: "Локально изм.", color: .accent, action: { [weak actionSheet] in
+                                actionSheet?.dismissAnimated()
+                                self.controller?.present(promptController(context: context, text: "Локально изм.", titleFont: .bold, value: text, characterLimit: 4096, apply: { value in
+                                    guard let value else {
+                                        return
+                                    }
+                                    NetegramLocalBio.set(peerId: netegramPeerId, text: value)
+                                }), in: .window(.root))
+                            }))
+                        }
+                        sheetItems.append(ActionSheetButtonItem(title: presentationData.strings.Common_Cancel, color: .accent, font: .bold, action: { [weak actionSheet] in
+                            actionSheet?.dismissAnimated()
+                        }))
+                        actionSheet.setItemGroups([ActionSheetItemGroup(items: sheetItems)])
+                        controller.present(actionSheet, in: .window(.root))
+                    }))
+
                     let (canTranslate, language) = canTranslateText(context: context, text: text, showTranslate: translationSettings.showTranslate, showTranslateIfTopical: false, ignoredLanguages: translationSettings.ignoredLanguages)
                     if canTranslate {
                         actions.append(ContextMenuAction(content: .text(title: presentationData.strings.Conversation_ContextMenuTranslate, accessibilityLabel: presentationData.strings.Conversation_ContextMenuTranslate), action: { [weak self] in

@@ -133,3 +133,62 @@ func netegramShouldIgnoreEdit(transaction: Transaction, id: MessageId) -> Bool {
     }
     return message.flags.contains(.Incoming)
 }
+
+/// Netegram: descriptions replaced with your own text, on this device only.
+///
+/// Nothing is sent anywhere — the person keeps whatever they wrote, and only you see the
+/// replacement. Useful when someone's "about" says nothing and you need a reminder of who
+/// they are.
+///
+/// Kept in memory and mirrored to disk for the same reason as the deleted list: it is read
+/// while the profile is laid out, and it has to outlive a restart.
+public enum NetegramLocalBio {
+    private static let storageKey = "netegram.localBio"
+
+    private static var cache: [String: String]?
+    private static let lock = NSLock()
+
+    private static func loaded() -> [String: String] {
+        if let cache = NetegramLocalBio.cache {
+            return cache
+        }
+        let stored = (UserDefaults.standard.dictionary(forKey: NetegramLocalBio.storageKey) as? [String: String]) ?? [:]
+        NetegramLocalBio.cache = stored
+        return stored
+    }
+
+    private static func store(_ value: [String: String]) {
+        NetegramLocalBio.cache = value
+        UserDefaults.standard.set(value, forKey: NetegramLocalBio.storageKey)
+    }
+
+    public static func set(peerId: PeerId, text: String) {
+        NetegramLocalBio.lock.lock()
+        var stored = NetegramLocalBio.loaded()
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        // An empty replacement is a removal, not a blank description: leaving it would hide the
+        // real text behind nothing with no way to tell the two apart.
+        if trimmed.isEmpty {
+            stored.removeValue(forKey: "\(peerId.toInt64())")
+        } else {
+            stored["\(peerId.toInt64())"] = trimmed
+        }
+        NetegramLocalBio.store(stored)
+        NetegramLocalBio.lock.unlock()
+    }
+
+    public static func clear(peerId: PeerId) {
+        NetegramLocalBio.set(peerId: peerId, text: "")
+    }
+
+    public static func value(peerId: PeerId) -> String? {
+        NetegramLocalBio.lock.lock()
+        defer { NetegramLocalBio.lock.unlock() }
+        return NetegramLocalBio.loaded()["\(peerId.toInt64())"]
+    }
+}
+
+/// The description to show: your replacement when there is one, otherwise what the server sent.
+public func netegramDisplayBio(peerId: PeerId, about: String?) -> String? {
+    return NetegramLocalBio.value(peerId: peerId) ?? about
+}

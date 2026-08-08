@@ -285,10 +285,10 @@ func infoItems(
                 
                 if hasAbout || hasWebApp {
                     var label: String = ""
-                    if let about = cachedData.about, !about.isEmpty {
+                    if let about = netegramDisplayBio(peerId: user.id, about: cachedData.about), !about.isEmpty {
                         label = user.botInfo == nil ? presentationData.strings.Profile_About : presentationData.strings.Profile_BotInfo
                     }
-                    items[currentPeerInfoSection]!.append(PeerInfoScreenLabeledValueItem(id: ItemAbout, label: label, text: cachedData.about ?? "", textColor: .primary, textBehavior: .multiLine(maxLines: 100, enabledEntities: user.isPremium ? enabledPublicBioEntities : enabledPrivateBioEntities), action: isMyProfile ? { node, _ in
+                    items[currentPeerInfoSection]!.append(PeerInfoScreenLabeledValueItem(id: ItemAbout, label: label, text: netegramDisplayBio(peerId: user.id, about: cachedData.about) ?? "", textColor: .primary, textBehavior: .multiLine(maxLines: 100, enabledEntities: user.isPremium ? enabledPublicBioEntities : enabledPrivateBioEntities), action: isMyProfile ? { node, _ in
                         bioContextAction(node, nil, nil)
                     } : nil, linkItemAction: bioLinkAction, button: actionButton, contextAction: bioContextAction, requestLayout: { animated in
                         interaction.requestLayout(animated)
@@ -667,7 +667,7 @@ func infoItems(
                     } else {
                         aboutText = presentationData.strings.GroupInfo_ScamGroupWarning
                     }
-                } else if let about = cachedData.about, !about.isEmpty {
+                } else if let about = netegramDisplayBio(peerId: channel.id, about: cachedData.about), !about.isEmpty {
                     aboutText = about
                 } else {
                     aboutText = nil
@@ -832,7 +832,7 @@ func infoItems(
                 aboutText = presentationData.strings.GroupInfo_FakeGroupWarning
             } else if group.isScam {
                 aboutText = presentationData.strings.GroupInfo_ScamGroupWarning
-            } else if let about = cachedData.about, !about.isEmpty {
+            } else if let about = netegramDisplayBio(peerId: group.id, about: cachedData.about), !about.isEmpty {
                 aboutText = about
             } else {
                 aboutText = nil

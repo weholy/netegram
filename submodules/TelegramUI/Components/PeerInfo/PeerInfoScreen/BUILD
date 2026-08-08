@@ -13,6 +13,7 @@ swift_library(
         "//submodules/AccountContext",
         "//submodules/AccountUtils",
         "//submodules/ActionSheetPeerItem",
+        "//submodules/PromptUI:PromptUI",
         "//submodules/ActivityIndicator",
         "//submodules/TelegramUI/Components/AnimationCache",
         "//submodules/AnimationUI",
