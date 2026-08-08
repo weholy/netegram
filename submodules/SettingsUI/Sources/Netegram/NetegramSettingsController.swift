@@ -231,7 +231,9 @@ private let netegramPublicEntries: [NetegramSettingsEntry] = [.look, .ghost, .lo
 private let netegramUnlockedEntries: [NetegramSettingsEntry] = [.look, .liquidGlass, .ghost, .hideButtons, .navBar, .localFeatures]
 
 private func netegramSettingsEntries(isOwner: Bool, isUnlocked: Bool) -> [NetegramSettingsEntry] {
-    guard isOwner else {
+    // The preview makes the owner take the stranger's branch, so what other people get can be
+    // checked without a second account.
+    guard isOwner, !NetegramUnlock.previewsAsRegularUser else {
         return isUnlocked ? netegramUnlockedEntries : netegramPublicEntries
     }
     return [.logoHeader(true), .search, .look, .appearance, .liquidGlass, .ghost, .hideButtons, .navBar, .localFeatures, .background, .unlock, .announcement]

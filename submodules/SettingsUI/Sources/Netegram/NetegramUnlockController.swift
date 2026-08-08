@@ -23,6 +23,8 @@ public enum NetegramUnlockStrings {
     public static let createdFooter = "Нажмите, чтобы скопировать. Кто получил ссылку — увидит все вкладки Netegram.\n\nСколько людей уже воспользовалось, здесь не видно: считать активации без сервера негде, об использовании знает только то устройство, где ссылку открыли."
     public static let copied = "Ссылка скопирована"
     public static let clear = "Очистить список"
+    public static let preview = "Смотреть как обычный"
+    public static let previewFooter = "Показывает экран Netegram так, как его видит человек без ссылки: три вкладки и без шапки. На чужие устройства не влияет, проверка владельца не меняется — выключите, когда посмотрите."
 }
 
 private let netegramUnlockWordKey = "netegram.unlock.lastWord"
@@ -49,13 +51,15 @@ private final class NetegramUnlockArguments {
     let create: () -> Void
     let copy: (String) -> Void
     let clear: () -> Void
+    let updatePreview: (Bool) -> Void
 
-    init(updateWord: @escaping (String) -> Void, updateCount: @escaping (Int) -> Void, create: @escaping () -> Void, copy: @escaping (String) -> Void, clear: @escaping () -> Void) {
+    init(updateWord: @escaping (String) -> Void, updateCount: @escaping (Int) -> Void, create: @escaping () -> Void, copy: @escaping (String) -> Void, clear: @escaping () -> Void, updatePreview: @escaping (Bool) -> Void) {
         self.updateWord = updateWord
         self.updateCount = updateCount
         self.create = create
         self.copy = copy
         self.clear = clear
+        self.updatePreview = updatePreview
     }
 }
 
@@ -69,6 +73,8 @@ private enum NetegramUnlockEntry: ItemListNodeEntry {
     case link(Int, String)
     case createdFooter
     case clear
+    case preview(Bool)
+    case previewFooter
 
     var section: ItemListSectionId {
         switch self {
@@ -84,6 +90,8 @@ private enum NetegramUnlockEntry: ItemListNodeEntry {
             return 3
         case .clear:
             return 4
+        case .preview, .previewFooter:
+            return 5
         }
     }
 
@@ -98,6 +106,8 @@ private enum NetegramUnlockEntry: ItemListNodeEntry {
         case let .link(index, _): return 10 + Int32(index)
         case .createdFooter: return 5000
         case .clear: return 5001
+        case .preview: return 5002
+        case .previewFooter: return 5003
         }
     }
 
@@ -132,6 +142,12 @@ private enum NetegramUnlockEntry: ItemListNodeEntry {
             })
         case .createdFooter:
             return ItemListTextItem(presentationData: presentationData, text: .plain(NetegramUnlockStrings.createdFooter), sectionId: self.section)
+        case let .preview(value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: NetegramUnlockStrings.preview, value: value, sectionId: self.section, style: .blocks, updated: { value in
+                arguments.updatePreview(value)
+            })
+        case .previewFooter:
+            return ItemListTextItem(presentationData: presentationData, text: .plain(NetegramUnlockStrings.previewFooter), sectionId: self.section)
         case .clear:
             return ItemListActionItem(presentationData: presentationData, systemStyle: .glass, title: NetegramUnlockStrings.clear, kind: .destructive, alignment: .natural, sectionId: self.section, style: .blocks, action: {
                 arguments.clear()
@@ -192,6 +208,9 @@ public func netegramUnlockController(context: AccountContext) -> ViewController 
         currentLinks = []
         NetegramUnlockLog.save([])
         push()
+    }, updatePreview: { value in
+        NetegramUnlock.setPreviewsAsRegularUser(value)
+        push()
     })
 
     let signal = combineLatest(queue: .mainQueue(),
@@ -215,6 +234,8 @@ public func netegramUnlockController(context: AccountContext) -> ViewController 
             entries.append(.createdFooter)
             entries.append(.clear)
         }
+        entries.append(.preview(NetegramUnlock.previewsAsRegularUser))
+        entries.append(.previewFooter)
 
         let controllerState = ItemListControllerState(
             presentationData: ItemListPresentationData(presentationData),
