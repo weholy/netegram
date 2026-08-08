@@ -13,6 +13,7 @@ private final class NetegramSettingsControllerArguments {
     let openSearch: () -> Void
     let openLook: () -> Void
     let openHideButtons: () -> Void
+    let openNavBar: () -> Void
     let openAppearance: () -> Void
     let openLiquidGlass: () -> Void
     let openGhost: () -> Void
@@ -20,10 +21,11 @@ private final class NetegramSettingsControllerArguments {
     let openBackground: () -> Void
     let openAnnouncement: () -> Void
 
-    init(openSearch: @escaping () -> Void, openLook: @escaping () -> Void, openHideButtons: @escaping () -> Void, openAppearance: @escaping () -> Void, openLiquidGlass: @escaping () -> Void, openGhost: @escaping () -> Void, openLocalFeatures: @escaping () -> Void, openBackground: @escaping () -> Void, openAnnouncement: @escaping () -> Void) {
+    init(openSearch: @escaping () -> Void, openLook: @escaping () -> Void, openHideButtons: @escaping () -> Void, openNavBar: @escaping () -> Void, openAppearance: @escaping () -> Void, openLiquidGlass: @escaping () -> Void, openGhost: @escaping () -> Void, openLocalFeatures: @escaping () -> Void, openBackground: @escaping () -> Void, openAnnouncement: @escaping () -> Void) {
         self.openSearch = openSearch
         self.openLook = openLook
         self.openHideButtons = openHideButtons
+        self.openNavBar = openNavBar
         self.openAppearance = openAppearance
         self.openLiquidGlass = openLiquidGlass
         self.openGhost = openGhost
@@ -41,6 +43,7 @@ private enum NetegramSettingsSection: Int32 {
     case search
     case look
     case hideButtons
+    case navBar
     case appearance
     case liquidGlass
     case ghost
@@ -54,6 +57,7 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
     case search
     case look
     case hideButtons
+    case navBar
     case appearance
     case liquidGlass
     case ghost
@@ -72,6 +76,8 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
             return NetegramSettingsSection.look.rawValue
         case .hideButtons:
             return NetegramSettingsSection.hideButtons.rawValue
+        case .navBar:
+            return NetegramSettingsSection.navBar.rawValue
         case .appearance, .appearanceFooter:
             return NetegramSettingsSection.appearance.rawValue
         case .liquidGlass:
@@ -97,20 +103,22 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
             return 1
         case .appearance:
             return 2
-        case .ghost:
-            return 3
-        case .hideButtons:
-            return 4
         case .liquidGlass:
+            return 3
+        case .ghost:
+            return 4
+        case .hideButtons:
             return 5
-        case .localFeatures:
+        case .navBar:
             return 6
-        case .background:
+        case .localFeatures:
             return 7
-        case .announcement:
+        case .background:
             return 8
-        case .appearanceFooter:
+        case .announcement:
             return 9
+        case .appearanceFooter:
+            return 10
         }
     }
 
@@ -145,6 +153,10 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
             return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramStrings.liquidGlass, label: "", additionalDetailLabel: "Жидкое стекло в интерфейсе", sectionId: self.section, style: .blocks, action: {
                 arguments.openLiquidGlass()
             })
+        case .navBar:
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramLookStrings.navBarTitle, label: "", additionalDetailLabel: NetegramLookStrings.navBarSubtitle, sectionId: self.section, style: .blocks, action: {
+                arguments.openNavBar()
+            })
         case .ghost:
             return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramGhostStrings.title, label: "", additionalDetailLabel: NetegramGhostStrings.subtitle, sectionId: self.section, style: .blocks, action: {
                 arguments.openGhost()
@@ -169,13 +181,13 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
 
 /// Rows offered to everyone. The rest of the screen is build-owner only — those features are
 /// either unfinished or specific to how this build is put together.
-private let netegramPublicEntries: [NetegramSettingsEntry] = [.logoHeader, .appearance, .ghost, .hideButtons, .localFeatures]
+private let netegramPublicEntries: [NetegramSettingsEntry] = [.logoHeader, .appearance, .liquidGlass, .ghost, .hideButtons, .navBar, .localFeatures]
 
 private func netegramSettingsEntries(isOwner: Bool) -> [NetegramSettingsEntry] {
     guard isOwner else {
         return netegramPublicEntries
     }
-    return [.logoHeader, .search, .look, .appearance, .ghost, .hideButtons, .liquidGlass, .localFeatures, .background, .announcement]
+    return [.logoHeader, .search, .look, .appearance, .liquidGlass, .ghost, .hideButtons, .navBar, .localFeatures, .background, .announcement]
 }
 
 /// Netegram: the account this build belongs to.
@@ -213,6 +225,8 @@ public func netegramSettingsController(context: AccountContext) -> ViewControlle
         pushControllerImpl?(netegramLookController(context: context))
     }, openHideButtons: {
         pushControllerImpl?(netegramHideProfileButtonsController(context: context))
+    }, openNavBar: {
+        pushControllerImpl?(netegramNavBarController(context: context))
     }, openAppearance: {
         pushControllerImpl?(netegramAppearanceController(context: context))
     }, openLiquidGlass: {

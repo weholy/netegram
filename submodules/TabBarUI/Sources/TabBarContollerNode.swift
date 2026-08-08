@@ -286,9 +286,15 @@ final class TabBarControllerNode: ASDisplayNode {
                 outerInsets: UIEdgeInsets(top: 0.0, left: sideInset, bottom: tabBarBottomInset, right: sideInset)
             )),
             environment: {},
-            containerSize: CGSize(width: params.layout.size.width - sideInset * 2.0, height: 100.0)
+            // Netegram: the width scale narrows the space the bar is measured in, so the bar
+            // sizes itself to the smaller box rather than being squashed afterwards — the
+            // items keep their proportions and simply sit closer together.
+            containerSize: CGSize(width: (params.layout.size.width - sideInset * 2.0) * netegramTabBarWidthScale(), height: 100.0)
         )
-        let tabBarFrame = CGRect(origin: CGPoint(x: floor((params.layout.size.width - tabBarSize.width) * 0.5), y: params.layout.size.height - (self.tabBarHidden ? 0.0 : (tabBarSize.height + tabBarBottomInset))), size: tabBarSize)
+        // Height is applied to the finished frame: the bar measures its own natural height and
+        // there is nothing meaningful to re-measure, only more or less room around the items.
+        let tabBarHeight = floor(tabBarSize.height * netegramTabBarHeightScale())
+        let tabBarFrame = CGRect(origin: CGPoint(x: floor((params.layout.size.width - tabBarSize.width) * 0.5), y: params.layout.size.height - (self.tabBarHidden ? 0.0 : (tabBarHeight + tabBarBottomInset))), size: CGSize(width: tabBarSize.width, height: tabBarHeight))
         
         if let tabBarComponentView = self.tabBarView.view {
             if tabBarComponentView.superview == nil {

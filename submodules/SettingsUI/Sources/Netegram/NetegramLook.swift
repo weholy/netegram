@@ -18,6 +18,8 @@ public enum NetegramLookStrings {
     public static let roundButtonsFooter = "Кнопки действий в профиле становятся круглыми, без подписей, на прозрачном стекле."
     public static let hideButtonsTitle = "Скрытие вкладок в профиле"
     public static let hideButtonsSubtitle = "Звонок, уведомления, поиск, ещё"
+    public static let navBarTitle = "Скрытие вкладок навбара"
+    public static let navBarSubtitle = "Вкладки и размер нижней панели"
 }
 
 /// Read by the chat context menu assembly, which cannot import SettingsUI.
@@ -27,6 +29,9 @@ public let netegramRoundProfileButtonsKey = "netegram.look.roundProfileButtons"
 public let netegramHiddenProfileButtonsKey = "netegram.look.hiddenProfileButtons"
 /// Read by TelegramRootController when it assembles the tab bar.
 public let netegramHiddenNavTabsKey = "netegram.look.hiddenNavTabs"
+/// Read by TabBarUI while laying the bar out. Percentages, 50 to 150.
+public let netegramNavBarWidthKey = "netegram.look.navBarWidth"
+public let netegramNavBarHeightKey = "netegram.look.navBarHeight"
 
 /// Bottom tab bar entries that can be hidden. Raw values are stored, so they must stay put.
 public enum NetegramNavTab: String, CaseIterable {
@@ -134,12 +139,16 @@ public struct NetegramLookSettings: Equatable {
     public let roundProfileButtons: Bool
     public let hiddenProfileButtons: [String]
     public let hiddenNavTabs: [String]
+    public let navBarWidth: Int
+    public let navBarHeight: Int
 
-    public init(contextRedesign: Bool, roundProfileButtons: Bool, hiddenProfileButtons: [String], hiddenNavTabs: [String]) {
+    public init(contextRedesign: Bool, roundProfileButtons: Bool, hiddenProfileButtons: [String], hiddenNavTabs: [String], navBarWidth: Int, navBarHeight: Int) {
         self.contextRedesign = contextRedesign
         self.roundProfileButtons = roundProfileButtons
         self.hiddenProfileButtons = hiddenProfileButtons
         self.hiddenNavTabs = hiddenNavTabs
+        self.navBarWidth = navBarWidth
+        self.navBarHeight = navBarHeight
     }
 }
 
@@ -158,8 +167,22 @@ public final class NetegramLookPreferences {
             contextRedesign: defaults.bool(forKey: netegramContextRedesignKey),
             roundProfileButtons: defaults.bool(forKey: netegramRoundProfileButtonsKey),
             hiddenProfileButtons: defaults.stringArray(forKey: netegramHiddenProfileButtonsKey) ?? [],
-            hiddenNavTabs: defaults.stringArray(forKey: netegramHiddenNavTabsKey) ?? []
+            hiddenNavTabs: defaults.stringArray(forKey: netegramHiddenNavTabsKey) ?? [],
+            navBarWidth: defaults.object(forKey: netegramNavBarWidthKey) as? Int ?? 100,
+            navBarHeight: defaults.object(forKey: netegramNavBarHeightKey) as? Int ?? 100
         )
+    }
+
+    /// Clamped on write as well as on read: the bar has to stay reachable whatever ends up in
+    /// the store.
+    public func setNavBarWidth(_ percent: Int) {
+        UserDefaults.standard.set(max(50, min(150, percent)), forKey: netegramNavBarWidthKey)
+        self.promise.set(NetegramLookPreferences.current())
+    }
+
+    public func setNavBarHeight(_ percent: Int) {
+        UserDefaults.standard.set(max(50, min(150, percent)), forKey: netegramNavBarHeightKey)
+        self.promise.set(NetegramLookPreferences.current())
     }
 
     public func setNavTabHidden(_ tab: NetegramNavTab, hidden: Bool) {
@@ -257,19 +280,15 @@ private enum NetegramLookEntry: ItemListNodeEntry {
 
 private final class NetegramHideButtonsArguments {
     let toggle: (NetegramProfileButton, Bool) -> Void
-    let toggleTab: (NetegramNavTab, Bool) -> Void
 
-    init(toggle: @escaping (NetegramProfileButton, Bool) -> Void, toggleTab: @escaping (NetegramNavTab, Bool) -> Void) {
+    init(toggle: @escaping (NetegramProfileButton, Bool) -> Void) {
         self.toggle = toggle
-        self.toggleTab = toggleTab
     }
 }
 
 private enum NetegramHideButtonsEntry: ItemListNodeEntry {
     case toggle(index: Int, button: NetegramProfileButton, value: Bool)
     case footer(index: Int, text: String)
-    case tabToggle(index: Int, tab: NetegramNavTab, value: Bool)
-    case tabFooter(index: Int, text: String)
 
     /// A section per pair keeps each toggle in its own block with the caption beneath it.
     var section: ItemListSectionId {
@@ -278,10 +297,6 @@ private enum NetegramHideButtonsEntry: ItemListNodeEntry {
             return ItemListSectionId(index)
         case let .footer(index, _):
             return ItemListSectionId(index)
-        case let .tabToggle(index, _, _):
-            return ItemListSectionId(100 + index)
-        case let .tabFooter(index, _):
-            return ItemListSectionId(100 + index)
         }
     }
 
@@ -291,10 +306,6 @@ private enum NetegramHideButtonsEntry: ItemListNodeEntry {
             return Int32(index * 2)
         case let .footer(index, _):
             return Int32(index * 2 + 1)
-        case let .tabToggle(index, _, _):
-            return Int32(200 + index * 2)
-        case let .tabFooter(index, _):
-            return Int32(200 + index * 2 + 1)
         }
     }
 
@@ -311,12 +322,6 @@ private enum NetegramHideButtonsEntry: ItemListNodeEntry {
             })
         case let .footer(_, text):
             return ItemListTextItem(presentationData: presentationData, text: .plain(text), sectionId: self.section)
-        case let .tabToggle(_, tab, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: tab.title, value: value, sectionId: self.section, style: .blocks, updated: { value in
-                arguments.toggleTab(tab, value)
-            })
-        case let .tabFooter(_, text):
-            return ItemListTextItem(presentationData: presentationData, text: .plain(text), sectionId: self.section)
         }
     }
 }
@@ -324,8 +329,6 @@ private enum NetegramHideButtonsEntry: ItemListNodeEntry {
 public func netegramHideProfileButtonsController(context: AccountContext) -> ViewController {
     let arguments = NetegramHideButtonsArguments(toggle: { button, value in
         NetegramLookPreferences.shared.setProfileButtonHidden(button, hidden: value)
-    }, toggleTab: { tab, value in
-        NetegramLookPreferences.shared.setNavTabHidden(tab, hidden: value)
     })
 
     let signal = combineLatest(queue: .mainQueue(),
@@ -338,10 +341,6 @@ public func netegramHideProfileButtonsController(context: AccountContext) -> Vie
         for (index, button) in NetegramProfileButton.allCases.enumerated() {
             entries.append(.toggle(index: index, button: button, value: settings.hiddenProfileButtons.contains(button.rawValue)))
             entries.append(.footer(index: index, text: button.footer))
-        }
-        for (index, tab) in NetegramNavTab.allCases.enumerated() {
-            entries.append(.tabToggle(index: index, tab: tab, value: settings.hiddenNavTabs.contains(tab.rawValue)))
-            entries.append(.tabFooter(index: index, text: tab.footer))
         }
 
         let controllerState = ItemListControllerState(

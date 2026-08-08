@@ -811,3 +811,25 @@ class TabBarNode: ASDisplayNode, ASGestureRecognizerDelegate {
         }
     }
 }
+
+/// Netegram: how wide the bottom bar is, as a fraction of the room it would normally take.
+///
+/// Keys are mirrored in NetegramLook (SettingsUI). Read on every layout pass rather than
+/// cached: layout of the tab bar happens a handful of times per screen change, not per frame,
+/// and a cache here would leave the bar at the old size until the app restarted.
+public func netegramTabBarWidthScale() -> CGFloat {
+    return netegramTabBarScale(key: "netegram.look.navBarWidth")
+}
+
+/// How much thicker or thinner the bar is than its natural height.
+public func netegramTabBarHeightScale() -> CGFloat {
+    return netegramTabBarScale(key: "netegram.look.navBarHeight")
+}
+
+/// Stored as a percentage so the settings screen can show a round number. Clamped on read as
+/// well as on write: a value from an older build, or one edited by hand, must not be able to
+/// collapse the bar to nothing or push it off the screen.
+private func netegramTabBarScale(key: String) -> CGFloat {
+    let percent = UserDefaults.standard.object(forKey: key) as? Int ?? 100
+    return CGFloat(max(50, min(150, percent))) / 100.0
+}
