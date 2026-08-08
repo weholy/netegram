@@ -564,33 +564,41 @@ private final class MultipartFetchManager {
             }
         }
         
+        // Chosen into locals first: both stored properties are constants, so the Netegram
+        // boost below has to fold into the same single assignment rather than overwrite it.
+        var chosenPartSize: Int64
+        var chosenParallelParts: Int
+
         if isStory {
-            self.defaultPartSize = 512 * 1024
-            if let size = size, size > self.defaultPartSize {
-                self.parallelParts = 4
+            chosenPartSize = 512 * 1024
+            if let size = size, size > chosenPartSize {
+                chosenParallelParts = 4
             } else {
-                self.parallelParts = 1
+                chosenParallelParts = 1
             }
         } else if let size = size {
             if size <= 512 * 1024 {
-                self.defaultPartSize = 16 * 1024
-                self.parallelParts = 4 * 4
+                chosenPartSize = 16 * 1024
+                chosenParallelParts = 4 * 4
             } else {
-                self.defaultPartSize = 512 * 1024
-                self.parallelParts = 8
+                chosenPartSize = 512 * 1024
+                chosenParallelParts = 8
             }
         } else {
-            self.parallelParts = 1
-            self.defaultPartSize = 128 * 1024
+            chosenParallelParts = 1
+            chosenPartSize = 128 * 1024
         }
 
-        // Netegram: applied after the size-based choice above rather than instead of it, so a
+        // Netegram: applied on top of the size-based choice rather than instead of it, so a
         // small file is still fetched in one go and only the downloads long enough to benefit
         // get the bigger chunks.
-        if let boost = netegramDownloadBoost(), self.defaultPartSize >= 512 * 1024 {
-            self.defaultPartSize = boost.partSize
-            self.parallelParts = max(self.parallelParts, boost.parallelParts)
+        if let boost = netegramDownloadBoost(), chosenPartSize >= 512 * 1024 {
+            chosenPartSize = boost.partSize
+            chosenParallelParts = max(chosenParallelParts, boost.parallelParts)
         }
+
+        self.defaultPartSize = chosenPartSize
+        self.parallelParts = chosenParallelParts
 
         if let info = parameters?.info as? TelegramCloudMediaResourceFetchInfo {
             self.fileReference = info.reference.apiFileReference
