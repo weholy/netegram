@@ -583,7 +583,15 @@ private final class MultipartFetchManager {
             self.parallelParts = 1
             self.defaultPartSize = 128 * 1024
         }
-        
+
+        // Netegram: applied after the size-based choice above rather than instead of it, so a
+        // small file is still fetched in one go and only the downloads long enough to benefit
+        // get the bigger chunks.
+        if let boost = netegramDownloadBoost(), self.defaultPartSize >= 512 * 1024 {
+            self.defaultPartSize = boost.partSize
+            self.parallelParts = max(self.parallelParts, boost.parallelParts)
+        }
+
         if let info = parameters?.info as? TelegramCloudMediaResourceFetchInfo {
             self.fileReference = info.reference.apiFileReference
             self.continueInBackground = info.continueInBackground

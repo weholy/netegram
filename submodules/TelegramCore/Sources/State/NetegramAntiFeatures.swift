@@ -20,6 +20,26 @@ enum NetegramAnti {
     }
 }
 
+/// Netegram: true while the client ignores a chat's ban on saving and forwarding.
+///
+/// The restriction is advisory — the server sends the content either way and only asks the
+/// client to hide the buttons, which is why lifting it needs nothing but this check.
+public func netegramAllowSavingProtectedContent() -> Bool {
+    return UserDefaults.standard.bool(forKey: "netegram.ghost.allowSaving")
+}
+
+/// Netegram: how much bigger to make download chunks. Nil while the boost is off.
+///
+/// A larger part means fewer round trips, which is where the speed comes from. The cost is
+/// that the server starts answering with FLOOD_WAIT sooner, so this is opt-in.
+public func netegramDownloadBoost() -> (partSize: Int64, parallelParts: Int)? {
+    guard UserDefaults.standard.bool(forKey: "netegram.ghost.fastDownload") else {
+        return nil
+    }
+    // 1 MB is the largest part the file API accepts, and 1 MB has to stay divisible by it.
+    return (1024 * 1024, 12)
+}
+
 /// Prefixed to a message the sender tried to take back.
 ///
 /// A marker rather than silent retention: a chat where deleted messages simply stay looks like

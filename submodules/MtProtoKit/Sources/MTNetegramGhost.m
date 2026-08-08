@@ -1,5 +1,7 @@
 #import <MtProtoKit/MTNetegramGhost.h>
 
+NSString * const MTNetegramDelayedSendStartedNotification = @"MTNetegramDelayedSendStarted";
+
 // Constructor ids of the functions ghost mode cares about. They are part of the TL schema and
 // change only when the schema does; the comments carry the schema name so a mismatch after a
 // layer bump is traceable.
@@ -57,10 +59,6 @@ static const int32_t MTGhostInputPeerChannelFromMessage = -1121318848;
 /// settings modules and cannot import them, so the store is read directly.
 static BOOL MTGhostFlag(NSString *key) {
     return [[NSUserDefaults standardUserDefaults] boolForKey:key];
-}
-
-static BOOL MTGhostEnabled(void) {
-    return MTGhostFlag(@"netegram.ghost.enabled");
 }
 
 #pragma mark - Fabricated responses
@@ -288,7 +286,52 @@ static BOOL MTGhostShouldBlockSetTyping(NSData *payload) {
     return key != nil && MTGhostFlag(key);
 }
 
+/// Bumped by every cancel. A send scheduled in an older generation gives up when it wakes.
+///
+/// A counter rather than a list of pending sends: cancelling means "not the ones in flight",
+/// and comparing one integer needs no bookkeeping that could leak or go stale.
+static NSInteger MTGhostSendGeneration = 0;
+
 @implementation MTNetegramGhost
+
++ (NSTimeInterval)sendDelayForPayload:(NSData *)payload {
+    if (payload.length < 4) {
+        return 0.0;
+    }
+    if (!MTGhostFlag(@"netegram.ghost.delayedSend")) {
+        return 0.0;
+    }
+
+    int32_t functionId = 0;
+    [payload getBytes:&functionId length:4];
+    if (functionId != MTGhostSendMessage && functionId != MTGhostSendMedia && functionId != MTGhostSendMultiMedia) {
+        return 0.0;
+    }
+
+    NSInteger seconds = [[NSUserDefaults standardUserDefaults] integerForKey:@"netegram.ghost.delayedSendSeconds"];
+    if (seconds <= 0) {
+        seconds = 5;
+    }
+    return (NSTimeInterval)seconds;
+}
+
++ (void)cancelDelayedSends {
+    @synchronized (self) {
+        MTGhostSendGeneration += 1;
+    }
+}
+
++ (BOOL)isDelayedSendCancelled:(NSInteger)generation {
+    @synchronized (self) {
+        return generation != MTGhostSendGeneration;
+    }
+}
+
++ (NSInteger)currentDelayedSendGeneration {
+    @synchronized (self) {
+        return MTGhostSendGeneration;
+    }
+}
 
 + (NSData *)fakeResponseForPayload:(NSData *)payload {
     if (payload.length < 4) {
@@ -298,13 +341,8 @@ static BOOL MTGhostShouldBlockSetTyping(NSData *payload) {
     int32_t functionId = 0;
     [payload getBytes:&functionId length:4];
 
-    // Ads are not part of ghost mode: hiding them says nothing about you to anyone.
     if (functionId == MTGhostGetSponsoredMessages) {
         return MTGhostFlag(@"netegram.ghost.noAds") ? MTGhostSponsoredEmpty() : nil;
-    }
-
-    if (!MTGhostEnabled()) {
-        return nil;
     }
 
     if (functionId == MTGhostAccountUpdateStatus) {

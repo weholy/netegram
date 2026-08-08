@@ -19,4 +19,24 @@
 /// `payload` is the serialised TL function, starting with its constructor id.
 + (NSData *)fakeResponseForPayload:(NSData *)payload;
 
+/// Seconds to hold a send back for, or 0 to send immediately.
+///
+/// Only sends are delayed. Holding back a read receipt or a typing notification would make the
+/// app feel broken for no benefit — the point is the window in which you can still change your
+/// mind about a message.
++ (NSTimeInterval)sendDelayForPayload:(NSData *)payload;
+
+/// Drops every send still inside its delay window. Called from the "cancel" button on the
+/// notice the app puts up while a message is waiting.
++ (void)cancelDelayedSends;
+
+/// True while a cancel is in force, so a scheduled send knows to give up.
++ (BOOL)isDelayedSendCancelled:(NSInteger)generation;
+
+/// The generation a send was scheduled in. Compare it later against a cancel.
++ (NSInteger)currentDelayedSendGeneration;
+
 @end
+
+/// Posted when a send starts waiting, so the app can offer to cancel it.
+extern NSString * _Nonnull const MTNetegramDelayedSendStartedNotification;

@@ -3,23 +3,25 @@ import SwiftSignalKit
 
 /// Netegram: the ghost-mode switches.
 ///
-/// Every key here is mirrored in MTNetegramGhost.m, which reads them while deciding whether an
-/// outgoing API call may leave the device. They live in UserDefaults rather than the account's
-/// preferences because MTProtoKit sits far below the postbox and cannot reach it — and because
-/// invisibility is a property of this device, not of the account.
+/// Every key here is mirrored where it is read — MTNetegramGhost.m for outgoing calls,
+/// NetegramAntiFeatures.swift for incoming updates, DeviceLocationManager for the position.
+/// They live in UserDefaults rather than the account's preferences because those readers sit
+/// far below the postbox, and because invisibility describes this device, not the account.
+///
+/// There is deliberately no master switch. Each row stands on its own, so turning one on never
+/// depends on remembering to turn something else on first.
 public enum NetegramGhostKeys {
-    public static let enabled = "netegram.ghost.enabled"
     public static let alwaysOnline = "netegram.ghost.alwaysOnline"
     public static let hideOnline = "netegram.ghost.hideOnline"
     public static let typing = "netegram.ghost.typing"
     public static let recordVoice = "netegram.ghost.recordVoice"
     public static let uploadVoice = "netegram.ghost.uploadVoice"
+    public static let recordRound = "netegram.ghost.recordRound"
+    public static let uploadRound = "netegram.ghost.uploadRound"
     public static let recordVideo = "netegram.ghost.recordVideo"
     public static let uploadVideo = "netegram.ghost.uploadVideo"
     public static let uploadPhoto = "netegram.ghost.uploadPhoto"
     public static let uploadFile = "netegram.ghost.uploadFile"
-    public static let recordRound = "netegram.ghost.recordRound"
-    public static let uploadRound = "netegram.ghost.uploadRound"
     public static let chooseSticker = "netegram.ghost.chooseSticker"
     public static let chooseLocation = "netegram.ghost.chooseLocation"
     public static let chooseContact = "netegram.ghost.chooseContact"
@@ -28,18 +30,20 @@ public enum NetegramGhostKeys {
     public static let emojiInteraction = "netegram.ghost.emojiInteraction"
     public static let emojiSeen = "netegram.ghost.emojiSeen"
     public static let readReceipts = "netegram.ghost.readReceipts"
+    public static let readOnAction = "netegram.ghost.readOnAction"
     public static let storyViews = "netegram.ghost.storyViews"
     public static let viewOnce = "netegram.ghost.viewOnce"
     public static let screenshots = "netegram.ghost.screenshots"
     public static let noAds = "netegram.ghost.noAds"
-    public static let readOnAction = "netegram.ghost.readOnAction"
+    public static let allowSaving = "netegram.ghost.allowSaving"
+    public static let hideStories = "netegram.ghost.hideStories"
+    public static let confirmCalls = "netegram.ghost.confirmCalls"
+    public static let sendAsVoice = "netegram.ghost.sendAsVoice"
+    public static let fastDownload = "netegram.ghost.fastDownload"
     public static let delayedSend = "netegram.ghost.delayedSend"
     public static let delayedSendSeconds = "netegram.ghost.delayedSendSeconds"
     public static let deviceName = "netegram.ghost.deviceName"
 
-    /// Read in TelegramCore's update processing — these decide what the client refuses to
-    /// throw away, so they sit below the ghost switch rather than under it.
-    /// Read in DeviceLocationManager, which substitutes the reading before anything sees it.
     public static let locationEnabled = "netegram.location.enabled"
     public static let locationLatitude = "netegram.location.latitude"
     public static let locationLongitude = "netegram.location.longitude"
@@ -51,88 +55,84 @@ public enum NetegramGhostKeys {
 
 public enum NetegramGhostStrings {
     public static let title = "Режим призрака"
-    public static let subtitle = "Ничего не сообщать о себе"
+    public static let subtitle = "Что о вас видят другие"
 
-    public static let enabled = "Режим призрака"
-    public static let enabledFooter = "Общий выключатель. Пока он выключен, всё ниже не действует — кроме скрытия рекламы и имени устройства."
+    public static let deviceName = "Имя устройства"
+    public static let deviceNamePlaceholder = "Как в системе"
+    public static let deviceNameFooter = "Имя, под которым это устройство видно в списке ваших сеансов. Пустое поле вернёт обычное."
 
-    public static let statuses = "Что не показывать"
-    public static let statusesFooter = "Собеседник не увидит перечисленное. Всё остальное уходит как обычно."
+    public static let delayedSendSeconds = "Задержка"
 
-    public static let alwaysOnline = "Всегда онлайн"
-    public static let alwaysOnlineFooter = "Приложение не сообщает, что вы ушли из него. Статус держится, пока сервер сам не решит, что вас давно не слышно, — обычно это несколько минут после закрытия."
-    public static let hideOnline = "Онлайн-статус"
-    public static let hideOnlineFooter = "Приложение не сообщает, что вы вернулись. Вы остаётесь «был давно», сколько бы ни сидели в чатах."
-
-    public static let typing = "Набор текста"
-    public static let recordVoice = "Запись голосового"
-    public static let uploadVoice = "Отправка голосового"
-    public static let recordVideo = "Запись видео"
-    public static let uploadVideo = "Отправка видео"
-    public static let uploadPhoto = "Отправка фото"
-    public static let uploadFile = "Загрузка файлов"
-    public static let recordRound = "Запись кружка"
-    public static let uploadRound = "Отправка кружка"
-    public static let chooseSticker = "Выбор стикера"
-    public static let chooseLocation = "Выбор геопозиции"
-    public static let chooseContact = "Выбор контакта"
-    public static let playGame = "Игра"
-    public static let speaking = "Голос в звонке"
-    public static let emojiInteraction = "Анимации эмодзи"
-    public static let emojiSeen = "Просмотр анимаций"
-
-    public static let receipts = "Отметки о просмотре"
-    public static let readReceipts = "Прочтение сообщений"
-    public static let readReceiptsFooter = "Галочки у собеседника остаются одинарными, сколько бы вы ни перечитывали переписку."
-    public static let storyViews = "Просмотр историй"
-    public static let storyViewsFooter = "Ваше имя не появится в списке зрителей."
-    public static let viewOnce = "Одноразовые"
-    public static let viewOnceFooter = "Фото и голосовые «на один раз» открываются без отметки — таймер уничтожения не запускается, отправитель ничего не узнает."
-    public static let screenshots = "Скриншоты"
-    public static let screenshotsFooter = "В секретных чатах не уходит уведомление о снимке экрана."
-    public static let readOnAction = "Читать при действиях"
-    public static let readOnActionFooter = "Просто открыть чат — ничего не меняется. Но стоит ответить или поставить реакцию, и переписка отмечается прочитанной: молчаливый собеседник, который при этом отвечает, выглядит страннее любых галочек."
-
-    public static let location = "Подмена локации"
-    public static let locationEnabled = "Подменять геопозицию"
-    public static let locationFooter = "Всё, что запрашивает ваше местоположение — отправка геопозиции, поиск людей рядом, — получает выбранную точку вместо настоящей."
     public static let locationPick = "Выбрать на карте"
     public static let locationReset = "Сбросить точку"
     public static let locationNotSet = "не выбрана"
     public static let locationPickTitle = "Точка на карте"
     public static let locationApply = "Готово"
     public static let locationCancel = "Отмена"
-
-    public static let keep = "Сохранение переписки"
-    public static let keepFooter = "Работает независимо от режима призрака: это про то, что видите вы, а не про то, что видят другие."
-    public static let antiRevoke = "Не удалять удалённое"
-    public static let antiRevokeFooter = "Сообщение, которое собеседник забрал назад, остаётся в переписке с корзиной в начале — видно и что написали, и что передумали."
-    public static let antiEdit = "Не применять правки"
-    public static let antiEditFooter = "Отредактированное чужое сообщение остаётся в том виде, в каком вы его прочитали. Свои правки применяются как обычно — иначе вы бы не видели собственных исправлений."
-    public static let antiAutoDelete = "Не удалять по таймеру"
-    public static let antiAutoDeleteFooter = "Исчезающие сообщения остаются после того, как их срок вышел."
-
-    public static let extras = "Прочее"
-    public static let noAds = "Скрыть рекламу"
-    public static let noAdsFooter = "Спонсорские сообщения в каналах не запрашиваются."
-    public static let deviceName = "Имя устройства"
-    public static let deviceNamePlaceholder = "Как в системе"
-    public static let deviceNameFooter = "Под этим именем сеанс виден в списке активных устройств. Пустое поле возвращает настоящую модель. Применяется после перезапуска."
-    public static let delayedSend = "Отложенная отправка"
-    public static let delayedSendFooter = "Сообщение задерживается на указанное время, и его можно отменить, пока оно не ушло."
-    public static let delayedSendSeconds = "Задержка"
 }
 
+/// One switch: what it is called and what it does, in one sentence.
+///
+/// Descriptions are written for someone deciding whether to flip the switch, not for someone
+/// maintaining the code. "Скрывает набор текста" answers the question; an explanation of which
+/// API call gets suppressed does not.
+public struct NetegramGhostRow {
+    public let key: String
+    public let title: String
+    public let footer: String
+
+    public init(key: String, title: String, footer: String) {
+        self.key = key
+        self.title = title
+        self.footer = footer
+    }
+}
+
+public let netegramGhostRows: [NetegramGhostRow] = [
+    NetegramGhostRow(key: NetegramGhostKeys.alwaysOnline, title: "Всегда онлайн", footer: "Держит статус «в сети», даже когда вы закрыли приложение."),
+    NetegramGhostRow(key: NetegramGhostKeys.hideOnline, title: "Онлайн-статус", footer: "Скрывает, что вы в сети."),
+    NetegramGhostRow(key: NetegramGhostKeys.typing, title: "Набор текста", footer: "Скрывает, что вы печатаете."),
+    NetegramGhostRow(key: NetegramGhostKeys.recordVoice, title: "Запись голосового", footer: "Скрывает, что вы записываете голосовое."),
+    NetegramGhostRow(key: NetegramGhostKeys.uploadVoice, title: "Отправка голосового", footer: "Скрывает, что вы отправляете голосовое."),
+    NetegramGhostRow(key: NetegramGhostKeys.recordRound, title: "Запись кружка", footer: "Скрывает, что вы записываете видеосообщение."),
+    NetegramGhostRow(key: NetegramGhostKeys.uploadRound, title: "Отправка кружка", footer: "Скрывает, что вы отправляете видеосообщение."),
+    NetegramGhostRow(key: NetegramGhostKeys.recordVideo, title: "Запись видео", footer: "Скрывает, что вы записываете видео."),
+    NetegramGhostRow(key: NetegramGhostKeys.uploadVideo, title: "Отправка видео", footer: "Скрывает, что вы отправляете видео."),
+    NetegramGhostRow(key: NetegramGhostKeys.uploadPhoto, title: "Отправка фото", footer: "Скрывает, что вы отправляете фото."),
+    NetegramGhostRow(key: NetegramGhostKeys.uploadFile, title: "Загрузка файлов", footer: "Скрывает, что вы отправляете файл."),
+    NetegramGhostRow(key: NetegramGhostKeys.chooseSticker, title: "Выбор стикера", footer: "Скрывает, что вы выбираете стикер."),
+    NetegramGhostRow(key: NetegramGhostKeys.chooseLocation, title: "Выбор геопозиции", footer: "Скрывает, что вы выбираете геопозицию."),
+    NetegramGhostRow(key: NetegramGhostKeys.chooseContact, title: "Выбор контакта", footer: "Скрывает, что вы выбираете контакт."),
+    NetegramGhostRow(key: NetegramGhostKeys.playGame, title: "Игра", footer: "Скрывает, что вы играете."),
+    NetegramGhostRow(key: NetegramGhostKeys.speaking, title: "Голос в звонке", footer: "Скрывает, что вы говорите в групповом звонке."),
+    NetegramGhostRow(key: NetegramGhostKeys.emojiInteraction, title: "Анимации эмодзи", footer: "Не отправляет анимацию, когда вы нажимаете на эмодзи."),
+    NetegramGhostRow(key: NetegramGhostKeys.emojiSeen, title: "Просмотр анимаций", footer: "Скрывает, что вы посмотрели чужую анимацию эмодзи."),
+    NetegramGhostRow(key: NetegramGhostKeys.readReceipts, title: "Прочтение сообщений", footer: "Галочки у собеседника остаются одинарными."),
+    NetegramGhostRow(key: NetegramGhostKeys.readOnAction, title: "Читать при действиях", footer: "Сообщения отмечаются прочитанными, только когда вы ответили или поставили реакцию. Работает вместе с предыдущим пунктом."),
+    NetegramGhostRow(key: NetegramGhostKeys.storyViews, title: "Просмотр историй", footer: "Вас не будет в списке зрителей."),
+    NetegramGhostRow(key: NetegramGhostKeys.viewOnce, title: "Одноразовые", footer: "Открывает одноразовые фото и голосовые, не сообщая отправителю."),
+    NetegramGhostRow(key: NetegramGhostKeys.screenshots, title: "Скриншоты", footer: "Не отправляет уведомление о снимке экрана в секретных чатах."),
+    NetegramGhostRow(key: NetegramGhostKeys.antiRevoke, title: "Не удалять удалённое", footer: "Сообщение, которое собеседник удалил, останется у вас с корзиной в начале."),
+    NetegramGhostRow(key: NetegramGhostKeys.antiEdit, title: "Не применять правки", footer: "Чужое сообщение останется таким, каким вы его прочитали."),
+    NetegramGhostRow(key: NetegramGhostKeys.antiAutoDelete, title: "Не удалять по таймеру", footer: "Исчезающие сообщения останутся после того, как их срок вышел."),
+    NetegramGhostRow(key: NetegramGhostKeys.allowSaving, title: "Сохранение из закрытых чатов", footer: "Разрешает сохранять и пересылать оттуда, где это запрещено."),
+    NetegramGhostRow(key: NetegramGhostKeys.hideStories, title: "Скрыть истории", footer: "Убирает ленту историй из списка чатов."),
+    NetegramGhostRow(key: NetegramGhostKeys.confirmCalls, title: "Подтверждение звонков", footer: "Спрашивает подтверждение перед звонком, чтобы не позвонить случайно."),
+    NetegramGhostRow(key: NetegramGhostKeys.sendAsVoice, title: "Аудио как голосовое", footer: "Отправляет выбранные аудиофайлы голосовыми сообщениями."),
+    NetegramGhostRow(key: NetegramGhostKeys.fastDownload, title: "Ускорить загрузку", footer: "Качает файлы большими кусками. Быстрее, но сервер может временно ограничить скорость."),
+    NetegramGhostRow(key: NetegramGhostKeys.noAds, title: "Скрыть рекламу", footer: "Убирает спонсорские сообщения в каналах."),
+    NetegramGhostRow(key: NetegramGhostKeys.delayedSend, title: "Отложенная отправка", footer: "Сообщение уходит не сразу — его можно отменить."),
+    NetegramGhostRow(key: NetegramGhostKeys.locationEnabled, title: "Подмена локации", footer: "Вместо настоящего местоположения будет выбранная точка.")
+]
+
 public struct NetegramGhostSettings: Equatable {
-    public let enabled: Bool
     public let flags: [String: Bool]
     public let delayedSendSeconds: Int32
     public let deviceName: String
     public let latitude: Double
     public let longitude: Double
 
-    public init(enabled: Bool, flags: [String: Bool], delayedSendSeconds: Int32, deviceName: String, latitude: Double, longitude: Double) {
-        self.enabled = enabled
+    public init(flags: [String: Bool], delayedSendSeconds: Int32, deviceName: String, latitude: Double, longitude: Double) {
         self.flags = flags
         self.delayedSendSeconds = delayedSendSeconds
         self.deviceName = deviceName
@@ -140,33 +140,17 @@ public struct NetegramGhostSettings: Equatable {
         self.longitude = longitude
     }
 
-    public var hasLocation: Bool {
-        return self.latitude != 0.0 || self.longitude != 0.0
-    }
-
     public func flag(_ key: String) -> Bool {
         return self.flags[key] ?? false
+    }
+
+    public var hasLocation: Bool {
+        return self.latitude != 0.0 || self.longitude != 0.0
     }
 }
 
 public final class NetegramGhostPreferences {
     public static let shared = NetegramGhostPreferences()
-
-    /// Every switch stored as a flag, so adding one does not mean touching the struct, the
-    /// promise and three call sites.
-    private static let flagKeys: [String] = [
-        NetegramGhostKeys.alwaysOnline, NetegramGhostKeys.hideOnline,
-        NetegramGhostKeys.typing, NetegramGhostKeys.recordVoice, NetegramGhostKeys.uploadVoice,
-        NetegramGhostKeys.recordVideo, NetegramGhostKeys.uploadVideo, NetegramGhostKeys.uploadPhoto,
-        NetegramGhostKeys.uploadFile, NetegramGhostKeys.recordRound, NetegramGhostKeys.uploadRound,
-        NetegramGhostKeys.chooseSticker, NetegramGhostKeys.chooseLocation, NetegramGhostKeys.chooseContact,
-        NetegramGhostKeys.playGame, NetegramGhostKeys.speaking, NetegramGhostKeys.emojiInteraction,
-        NetegramGhostKeys.emojiSeen, NetegramGhostKeys.readReceipts, NetegramGhostKeys.storyViews,
-        NetegramGhostKeys.viewOnce, NetegramGhostKeys.screenshots, NetegramGhostKeys.noAds,
-        NetegramGhostKeys.readOnAction, NetegramGhostKeys.delayedSend,
-        NetegramGhostKeys.antiRevoke, NetegramGhostKeys.antiEdit, NetegramGhostKeys.antiAutoDelete,
-        NetegramGhostKeys.locationEnabled
-    ]
 
     private let promise: ValuePromise<NetegramGhostSettings>
 
@@ -177,12 +161,11 @@ public final class NetegramGhostPreferences {
     public static func current() -> NetegramGhostSettings {
         let defaults = UserDefaults.standard
         var flags: [String: Bool] = [:]
-        for key in NetegramGhostPreferences.flagKeys {
-            flags[key] = defaults.bool(forKey: key)
+        for row in netegramGhostRows {
+            flags[row.key] = defaults.bool(forKey: row.key)
         }
         let seconds = defaults.object(forKey: NetegramGhostKeys.delayedSendSeconds) as? Int ?? 5
         return NetegramGhostSettings(
-            enabled: defaults.bool(forKey: NetegramGhostKeys.enabled),
             flags: flags,
             delayedSendSeconds: Int32(seconds),
             deviceName: defaults.string(forKey: NetegramGhostKeys.deviceName) ?? "",
@@ -191,36 +174,13 @@ public final class NetegramGhostPreferences {
         )
     }
 
-    public func setLocation(latitude: Double, longitude: Double) {
-        let defaults = UserDefaults.standard
-        defaults.set(latitude, forKey: NetegramGhostKeys.locationLatitude)
-        defaults.set(longitude, forKey: NetegramGhostKeys.locationLongitude)
-        self.promise.set(NetegramGhostPreferences.current())
-    }
-
-    /// Clearing the point also clears the switch: a spoof turned on with nowhere to be is a
-    /// setting that silently does nothing.
-    public func resetLocation() {
-        let defaults = UserDefaults.standard
-        defaults.set(0.0, forKey: NetegramGhostKeys.locationLatitude)
-        defaults.set(0.0, forKey: NetegramGhostKeys.locationLongitude)
-        defaults.set(false, forKey: NetegramGhostKeys.locationEnabled)
-        self.promise.set(NetegramGhostPreferences.current())
-    }
-
     public var signal: Signal<NetegramGhostSettings, NoError> {
         return self.promise.get()
     }
 
-    public func setEnabled(_ value: Bool) {
-        UserDefaults.standard.set(value, forKey: NetegramGhostKeys.enabled)
-        self.promise.set(NetegramGhostPreferences.current())
-    }
-
     /// Writing a flag, with the one rule the switches cannot express on their own: staying
-    /// online and hiding that you are online are opposite instructions about the same call, so
-    /// turning either on turns the other off rather than leaving both set and letting whichever
-    /// branch runs first decide.
+    /// online and hiding that you are online are opposite instructions about the same thing,
+    /// so turning either on turns the other off.
     public func setFlag(_ key: String, value: Bool) {
         let defaults = UserDefaults.standard
         defaults.set(value, forKey: key)
@@ -242,6 +202,23 @@ public final class NetegramGhostPreferences {
     public func setDeviceName(_ value: String) {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         UserDefaults.standard.set(trimmed, forKey: NetegramGhostKeys.deviceName)
+        self.promise.set(NetegramGhostPreferences.current())
+    }
+
+    public func setLocation(latitude: Double, longitude: Double) {
+        let defaults = UserDefaults.standard
+        defaults.set(latitude, forKey: NetegramGhostKeys.locationLatitude)
+        defaults.set(longitude, forKey: NetegramGhostKeys.locationLongitude)
+        self.promise.set(NetegramGhostPreferences.current())
+    }
+
+    /// Clearing the point also clears the switch: a spoof turned on with nowhere to be is a
+    /// setting that silently does nothing.
+    public func resetLocation() {
+        let defaults = UserDefaults.standard
+        defaults.set(0.0, forKey: NetegramGhostKeys.locationLatitude)
+        defaults.set(0.0, forKey: NetegramGhostKeys.locationLongitude)
+        defaults.set(false, forKey: NetegramGhostKeys.locationEnabled)
         self.promise.set(NetegramGhostPreferences.current())
     }
 }

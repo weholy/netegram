@@ -47,6 +47,10 @@
 /// MTNetegramGhost.h for why the interception has to happen at this layer.
 @property (nonatomic, strong) NSData *netegramFakeData;
 
+/// Netegram: set once a delayed send has served its wait, so re-queueing it after the delay
+/// does not start a second one.
+@property (nonatomic) bool netegramWasDelayed;
+
 - (void)setPayload:(NSData *)payload metadata:(id)metadata shortMetadata:(id)shortMetadata responseParser:(id (^)(NSData *))responseParser;
 
 @end

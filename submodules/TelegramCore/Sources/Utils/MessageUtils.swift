@@ -391,6 +391,11 @@ public extension Message {
     }
     
     func isCopyProtected() -> Bool {
+        // Netegram: one check covers every save, forward and copy button, because they all
+        // ask this question before deciding whether to appear.
+        if netegramAllowSavingProtectedContent() {
+            return false
+        }
         if self.flags.contains(.CopyProtected) {
             return true
         } else if let group = self.peers[self.id.peerId] as? TelegramGroup, group.flags.contains(.copyProtectionEnabled) {

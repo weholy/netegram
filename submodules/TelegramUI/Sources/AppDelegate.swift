@@ -1380,6 +1380,8 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
 
                     self.mainWindow.debugAction = nil
                     self.mainWindow.viewController = context.rootController
+                    // Netegram: gives the delayed-send notice somewhere to present from.
+                    NetegramDelayedSendNotice.shared.setContext(context.context)
                     
                     if firstTime {
                         let layer = context.rootController.view.layer

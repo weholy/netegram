@@ -12,6 +12,7 @@
 #import <MtProtoKit/MTOutgoingMessage.h>
 #import <MtProtoKit/MTPreparedMessage.h>
 #import <MtProtoKit/MTRequest.h>
+#import <MtProtoKit/MTNetegramGhost.h>
 #import <MtProtoKit/MTRequestContext.h>
 #import <MtProtoKit/MTRequestErrorContext.h>
 #import <MtProtoKit/MTDropResponseContext.h>
@@ -135,6 +136,32 @@
         // The parser rejected the fabricated response, which means the schema moved out from
         // under the hardcoded bytes. Sending is the safe fallback: a visible status is better
         // than a request that silently disappears.
+    }
+
+    // Netegram: a delayed send waits here, before anything is queued for transport, so a
+    // cancel during the wait leaves no trace on the wire at all.
+    NSTimeInterval sendDelay = [MTNetegramGhost sendDelayForPayload:request.payload];
+    if (sendDelay > 0.0 && !request.netegramWasDelayed) {
+        request.netegramWasDelayed = true;
+        NSInteger generation = [MTNetegramGhost currentDelayedSendGeneration];
+        [[NSNotificationCenter defaultCenter] postNotificationName:MTNetegramDelayedSendStartedNotification object:nil userInfo:@{@"delay": @(sendDelay)}];
+        __weak MTRequestMessageService *weakSelf = self;
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(sendDelay * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            MTRequestMessageService *strongSelf = weakSelf;
+            if (strongSelf == nil) {
+                return;
+            }
+            if ([MTNetegramGhost isDelayedSendCancelled:generation]) {
+                // Reported as a failure rather than dropped silently: the message then shows
+                // as unsent, which is the truth and leaves it in the user's hands.
+                if (request.completed) {
+                    request.completed(nil, nil, [[MTRpcError alloc] initWithErrorCode:406 errorDescription:@"NETEGRAM_SEND_CANCELLED"]);
+                }
+                return;
+            }
+            [strongSelf addRequest:request];
+        });
+        return;
     }
 
     [_queue dispatchOnQueue:^
