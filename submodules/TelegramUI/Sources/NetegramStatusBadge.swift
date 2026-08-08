@@ -49,10 +49,22 @@ public final class NetegramStatusBadgeView: UIView {
         window.addSubview(view)
     }
 
+    public override func safeAreaInsetsDidChange() {
+        super.safeAreaInsetsDidChange()
+
+        // The insets arrive after the view is already in the window, and nothing else asks for
+        // another layout pass — without this the badge stays where the first, empty inset put
+        // it, which is off the top of the screen.
+        self.setNeedsLayout()
+    }
+
     public override func layoutSubviews() {
         super.layoutSubviews()
 
-        let safeAreaTop = self.safeAreaInsets.top
+        // Read from the window rather than from self: a plain subview reports zero insets
+        // until the window has propagated them, and a zero inset reads here as "this device
+        // has no Dynamic Island" — which hides the badge for good.
+        let safeAreaTop = self.window?.safeAreaInsets.top ?? self.safeAreaInsets.top
         // Landscape moves the island off the top edge, so there is nothing to cover there.
         let isPortrait = self.bounds.height >= self.bounds.width
         guard isPortrait, safeAreaTop >= minimumDynamicIslandSafeAreaInset else {
