@@ -100,6 +100,16 @@ jobs:
           echo "BUILD_NUMBER=$(echo $BUILD_NUMBER)" >> $GITHUB_ENV
           echo "APP_VERSION=$(echo $APP_VERSION)" >> $GITHUB_ENV
 
+          # Netegram's own release number, bumped by hand in netegram_version. The build
+          # number counts commits and jumps around, which makes one build hard to tell from
+          # the next when they are sitting in a downloads folder.
+          NETEGRAM_RELEASE="$(tr -d '[:space:]' < netegram_version)"
+          # Kept as a shell variable as well as an env one: GITHUB_ENV only reaches later
+          # steps, and the copy that names the file happens further down in this same step.
+          export NETEGRAM_RELEASE_FILE="$(echo "$NETEGRAM_RELEASE" | tr '.' '_')"
+          echo "NETEGRAM_RELEASE=$NETEGRAM_RELEASE" >> $GITHUB_ENV
+          echo "NETEGRAM_RELEASE_FILE=$NETEGRAM_RELEASE_FILE" >> $GITHUB_ENV
+
           # Simulator build: needs no code signing. The bundled fake-codesigning profiles
           # are stand-ins for Telegram's own and lack the aps-environment entitlement a
           # device build asks for, so a device IPA needs real provisioning profiles issued
@@ -132,7 +142,7 @@ jobs:
           IPA_PATH=$(find -L bazel-out -maxdepth 6 -name '*.ipa' -type f 2>/dev/null | head -n 1)
           echo "Found ipa: ${IPA_PATH:-<none>}"
           if [ -n "$IPA_PATH" ]; then
-            cp "$IPA_PATH" "$OUTPUT_PATH/Netegram.ipa"
+            cp "$IPA_PATH" "$OUTPUT_PATH/Netegram_${NETEGRAM_RELEASE_FILE}.ipa"
           else
             echo "::warning::No .ipa produced. Tree under bazel-out/*/bin/Telegram:"
             find -L bazel-out -maxdepth 6 -name '*.app' -o -maxdepth 6 -name '*.ipa' 2>/dev/null | head -n 20
@@ -146,6 +156,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Netegram-${{ env.APP_VERSION }}-${{ env.BUILD_NUMBER }}-ipa
-          path: /Users/Shared/netegram/build/artifacts/Netegram.ipa
+          name: Netegram_${{ env.NETEGRAM_RELEASE_FILE }}
+          path: /Users/Shared/netegram/build/artifacts/Netegram_${{ env.NETEGRAM_RELEASE_FILE }}.ipa
           if-no-files-found: warn
