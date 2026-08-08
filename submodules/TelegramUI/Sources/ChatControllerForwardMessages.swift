@@ -153,7 +153,12 @@ extension ChatControllerImpl {
                         }
                         
                         var attributes: [EngineMessage.Attribute] = []
-                        attributes.append(ForwardOptionsMessageAttribute(hideNames: forwardOptions?.hideNames == true, hideCaptions: forwardOptions?.hideCaptions == true))
+                        // Netegram: this is the path the context menu actually takes - the peer
+                        // picker sends from here, not through the composer - so "Forward without
+                        // author" has to be answered at this site as well. The attribute is built
+                        // once for every message in the batch, so consuming the flag here covers
+                        // the whole forward.
+                        attributes.append(ForwardOptionsMessageAttribute(hideNames: NetegramForwardWithoutAuthor.consume() || forwardOptions?.hideNames == true, hideCaptions: forwardOptions?.hideCaptions == true))
                         
                         result.append(contentsOf: messages.map { message -> EnqueueMessage in
                             return .forward(source: message.id, threadId: nil, grouping: .auto, attributes: attributes, correlationId: nil)
