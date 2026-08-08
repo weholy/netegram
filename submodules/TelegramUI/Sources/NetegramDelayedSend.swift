@@ -25,9 +25,10 @@ public final class NetegramDelayedSendNotice {
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(self.sendStarted(_:)),
-            // Imported as NSNotification.Name already: Objective-C string constants whose
-            // name ends in "Notification" are bridged to that type, not to String.
-            name: MTNetegramDelayedSendStartedNotification,
+            // The bridge both retypes the constant as NSNotification.Name and strips the
+            // "Notification" suffix from its name, so this is the same constant declared in
+            // MTNetegramGhost.h under the name Swift gives it.
+            name: NSNotification.Name.MTNetegramDelayedSendStarted,
             object: nil
         )
     }
