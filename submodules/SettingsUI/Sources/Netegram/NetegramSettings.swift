@@ -17,8 +17,6 @@ public enum NetegramStrings {
     public static let liquidGlass = "Liquid Glass"
     public static let liquidGlassMessagesTitle = "Liquid Glass на сообщения"
     public static let liquidGlassMessagesFooter = "Делает пузырьки сообщений прозрачными."
-    public static let liquidGlassInlineTitle = "Liquid Glass на Inline-кнопки в ботах"
-    public static let liquidGlassInlineFooter = "Делает кнопки под сообщениями ботов прозрачными."
     public static let liquidGlassEverywhereTitle = "Liquid Glass повсюду"
     public static let liquidGlassEverywhereFooter = "Панели, шапки, кнопки и блоки по всему приложению."
 }
@@ -29,12 +27,10 @@ public enum NetegramStrings {
 /// conform to it however simple their elements are.
 public struct NetegramLiquidGlassSettings: Equatable {
     public let messages: Bool
-    public let inlineButtons: Bool
     public let everywhere: Bool
 
-    public init(messages: Bool, inlineButtons: Bool, everywhere: Bool) {
+    public init(messages: Bool, everywhere: Bool) {
         self.messages = messages
-        self.inlineButtons = inlineButtons
         self.everywhere = everywhere
     }
 }
@@ -50,7 +46,6 @@ private let useOriginalTelegramLogoKey = "netegram.useOriginalTelegramLogo"
 /// this module (SettingsUI already depends on TelegramPresentationData).
 private let customSettingsIconsKey = "netegram.customSettingsIcons"
 private let liquidGlassMessagesKey = "netegram.liquidGlass.messages"
-private let liquidGlassInlineButtonsKey = "netegram.liquidGlass.inlineButtons"
 /// Mirrored in GlassBackgroundComponent, which resolves .panel to .clear when this is set.
 private let liquidGlassEverywhereKey = "netegram.liquidGlass.everywhere"
 
@@ -105,9 +100,6 @@ public final class NetegramSettings {
         return UserDefaults.standard.bool(forKey: liquidGlassMessagesKey)
     }
 
-    public var liquidGlassInlineButtons: Bool {
-        return UserDefaults.standard.bool(forKey: liquidGlassInlineButtonsKey)
-    }
 
     public var liquidGlassEverywhere: Bool {
         return UserDefaults.standard.bool(forKey: liquidGlassEverywhereKey)
@@ -122,10 +114,6 @@ public final class NetegramSettings {
         self.pushLiquidGlass()
     }
 
-    public func setLiquidGlassInlineButtons(_ value: Bool) {
-        UserDefaults.standard.set(value, forKey: liquidGlassInlineButtonsKey)
-        self.pushLiquidGlass()
-    }
 
     public func setLiquidGlassEverywhere(_ value: Bool) {
         UserDefaults.standard.set(value, forKey: liquidGlassEverywhereKey)
@@ -140,7 +128,6 @@ public final class NetegramSettings {
         let defaults = UserDefaults.standard
         return NetegramLiquidGlassSettings(
             messages: defaults.bool(forKey: liquidGlassMessagesKey),
-            inlineButtons: defaults.bool(forKey: liquidGlassInlineButtonsKey),
             everywhere: defaults.bool(forKey: liquidGlassEverywhereKey)
         )
     }

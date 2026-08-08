@@ -60,12 +60,6 @@ func netegramSearchEntries() -> [NetegramSearchEntryDescriptor] {
             open: { context, push in push(netegramLiquidGlassController(context: context)) }
         ),
         NetegramSearchEntryDescriptor(
-            title: NetegramStrings.liquidGlassInlineTitle,
-            breadcrumb: "Liquid Glass",
-            alternate: ["кнопки", "боты", "inline", "стекло"],
-            open: { context, push in push(netegramLiquidGlassController(context: context)) }
-        ),
-        NetegramSearchEntryDescriptor(
             title: NetegramStrings.liquidGlassEverywhereTitle,
             breadcrumb: "Liquid Glass",
             alternate: ["стекло", "везде", "повсюду", "glass", "панели", "меню"],

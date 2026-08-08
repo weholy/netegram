@@ -11,27 +11,22 @@ import AccountContext
 
 private final class NetegramLiquidGlassControllerArguments {
     let updateMessages: (Bool) -> Void
-    let updateInlineButtons: (Bool) -> Void
     let updateEverywhere: (Bool) -> Void
 
-    init(updateMessages: @escaping (Bool) -> Void, updateInlineButtons: @escaping (Bool) -> Void, updateEverywhere: @escaping (Bool) -> Void) {
+    init(updateMessages: @escaping (Bool) -> Void, updateEverywhere: @escaping (Bool) -> Void) {
         self.updateMessages = updateMessages
-        self.updateInlineButtons = updateInlineButtons
         self.updateEverywhere = updateEverywhere
     }
 }
 
 private enum NetegramLiquidGlassSection: Int32 {
     case messages
-    case inlineButtons
     case everywhere
 }
 
 private enum NetegramLiquidGlassEntry: ItemListNodeEntry {
     case messages(Bool)
     case messagesFooter
-    case inlineButtons(Bool)
-    case inlineButtonsFooter
     case everywhere(Bool)
     case everywhereFooter
 
@@ -39,8 +34,6 @@ private enum NetegramLiquidGlassEntry: ItemListNodeEntry {
         switch self {
         case .messages, .messagesFooter:
             return NetegramLiquidGlassSection.messages.rawValue
-        case .inlineButtons, .inlineButtonsFooter:
-            return NetegramLiquidGlassSection.inlineButtons.rawValue
         case .everywhere, .everywhereFooter:
             return NetegramLiquidGlassSection.everywhere.rawValue
         }
@@ -52,10 +45,6 @@ private enum NetegramLiquidGlassEntry: ItemListNodeEntry {
             return 0
         case .messagesFooter:
             return 1
-        case .inlineButtons:
-            return 2
-        case .inlineButtonsFooter:
-            return 3
         case .everywhere:
             return 4
         case .everywhereFooter:
@@ -76,12 +65,6 @@ private enum NetegramLiquidGlassEntry: ItemListNodeEntry {
             })
         case .messagesFooter:
             return ItemListTextItem(presentationData: presentationData, text: .plain(NetegramStrings.liquidGlassMessagesFooter), sectionId: self.section)
-        case let .inlineButtons(value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: NetegramStrings.liquidGlassInlineTitle, value: value, sectionId: self.section, style: .blocks, updated: { value in
-                arguments.updateInlineButtons(value)
-            })
-        case .inlineButtonsFooter:
-            return ItemListTextItem(presentationData: presentationData, text: .plain(NetegramStrings.liquidGlassInlineFooter), sectionId: self.section)
         case let .everywhere(value):
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: NetegramStrings.liquidGlassEverywhereTitle, value: value, sectionId: self.section, style: .blocks, updated: { value in
                 arguments.updateEverywhere(value)
@@ -98,9 +81,6 @@ public func netegramLiquidGlassController(context: AccountContext) -> ViewContro
     let arguments = NetegramLiquidGlassControllerArguments(updateMessages: { value in
         NetegramSettings.shared.setLiquidGlassMessages(value)
         presentRestartImpl?()
-    }, updateInlineButtons: { value in
-        NetegramSettings.shared.setLiquidGlassInlineButtons(value)
-        presentRestartImpl?()
     }, updateEverywhere: { value in
         NetegramSettings.shared.setLiquidGlassEverywhere(value)
         presentRestartImpl?()
@@ -115,8 +95,6 @@ public func netegramLiquidGlassController(context: AccountContext) -> ViewContro
         let entries: [NetegramLiquidGlassEntry] = [
             .messages(glass.messages),
             .messagesFooter,
-            .inlineButtons(glass.inlineButtons),
-            .inlineButtonsFooter,
             .everywhere(glass.everywhere),
             .everywhereFooter
         ]
