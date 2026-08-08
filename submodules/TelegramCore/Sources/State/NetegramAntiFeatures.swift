@@ -55,58 +55,65 @@ public func netegramDownloadBoost() -> (partSize: Int64, parallelParts: Int)? {
     return (1024 * 1024, 12)
 }
 
-/// Prefixed to a message the sender tried to take back.
+/// Netegram: messages someone tried to take back, kept and flagged instead of removed.
 ///
-/// A marker rather than silent retention: a chat where deleted messages simply stay looks like
-/// a chat where nothing happened, and later there is no way to tell that the other side no
-/// longer has what you are reading.
-private let netegramDeletedMarker = "🗑 "
-
-/// Keeps the message and marks it, instead of removing it.
+/// An id list rather than a change to the message itself: rewriting the text to carry a marker
+/// meant editing every kept message in the database, and the marker then lived inside the
+/// bubble, where it reads as part of what was written. The chat asks this list while laying a
+/// message out and draws the mark beside the bubble instead.
 ///
-/// Deletion updates arrive more than once — a resend, a difference fetch, a second device —
-/// so the marker is applied only when it is not already there.
-func netegramMarkMessagesDeleted(transaction: Transaction, ids: [MessageId]) {
-    for id in ids {
-        transaction.updateMessage(id, update: { currentMessage in
-            if currentMessage.text.hasPrefix(netegramDeletedMarker) {
-                return .skip
-            }
+/// Held in memory and mirrored to disk. It is consulted on every bubble layout, which is far
+/// too often to touch the store, and it has to survive a restart or yesterday's kept messages
+/// would quietly lose their mark.
+public enum NetegramDeletedMessages {
+    private static let storageKey = "netegram.deletedMessages"
+    private static let maximumTracked = 2000
 
-            var storeForwardInfo: StoreMessageForwardInfo?
-            if let forwardInfo = currentMessage.forwardInfo {
-                storeForwardInfo = StoreMessageForwardInfo(
-                    authorId: forwardInfo.author?.id,
-                    sourceId: forwardInfo.source?.id,
-                    sourceMessageId: forwardInfo.sourceMessageId,
-                    date: forwardInfo.date,
-                    authorSignature: forwardInfo.authorSignature,
-                    psaType: forwardInfo.psaType,
-                    flags: forwardInfo.flags
-                )
-            }
+    private static var cache: Set<String>?
+    private static let lock = NSLock()
 
-            return .update(StoreMessage(
-                id: currentMessage.id,
-                // Keeping the stable id keeps the message in the same place in the list — a
-                // new one would make it animate in as if it had just arrived.
-                customStableId: currentMessage.stableId,
-                globallyUniqueId: currentMessage.globallyUniqueId,
-                groupingKey: currentMessage.groupingKey,
-                threadId: currentMessage.threadId,
-                timestamp: currentMessage.timestamp,
-                flags: StoreMessageFlags(currentMessage.flags),
-                tags: currentMessage.tags,
-                globalTags: currentMessage.globalTags,
-                localTags: currentMessage.localTags,
-                forwardInfo: storeForwardInfo,
-                authorId: currentMessage.author?.id,
-                text: netegramDeletedMarker + currentMessage.text,
-                attributes: currentMessage.attributes,
-                media: currentMessage.media
-            ))
-        })
+    private static func key(_ id: MessageId) -> String {
+        return "\(id.peerId.toInt64()):\(id.namespace):\(id.id)"
     }
+
+    private static func loaded() -> Set<String> {
+        if let cache = NetegramDeletedMessages.cache {
+            return cache
+        }
+        let stored = Set(UserDefaults.standard.stringArray(forKey: NetegramDeletedMessages.storageKey) ?? [])
+        NetegramDeletedMessages.cache = stored
+        return stored
+    }
+
+    public static func insert(_ ids: [MessageId]) {
+        guard !ids.isEmpty else {
+            return
+        }
+        NetegramDeletedMessages.lock.lock()
+        var stored = NetegramDeletedMessages.loaded()
+        for id in ids {
+            stored.insert(NetegramDeletedMessages.key(id))
+        }
+        // Oldest entries are not knowable here, so an overflowing list is simply dropped: the
+        // marks are a convenience, and an unbounded list would grow for the life of the install.
+        if stored.count > NetegramDeletedMessages.maximumTracked {
+            stored = []
+        }
+        NetegramDeletedMessages.cache = stored
+        UserDefaults.standard.set(Array(stored), forKey: NetegramDeletedMessages.storageKey)
+        NetegramDeletedMessages.lock.unlock()
+    }
+
+    public static func contains(_ id: MessageId) -> Bool {
+        NetegramDeletedMessages.lock.lock()
+        defer { NetegramDeletedMessages.lock.unlock() }
+        return NetegramDeletedMessages.loaded().contains(NetegramDeletedMessages.key(id))
+    }
+}
+
+/// Keeps the messages and records them as deleted, instead of removing them.
+func netegramMarkMessagesDeleted(transaction: Transaction, ids: [MessageId]) {
+    NetegramDeletedMessages.insert(ids)
 }
 
 func netegramMarkMessagesDeleted(transaction: Transaction, globalIds: [Int32]) {

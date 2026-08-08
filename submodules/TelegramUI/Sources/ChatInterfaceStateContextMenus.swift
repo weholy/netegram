@@ -1940,7 +1940,11 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
             let canForward = data.messageActions.options.contains(.forward) && !isCopyProtected
             let editVersions = NetegramEditHistory.versions(id: netegramMessage.id)
 
-            if canForward || !editVersions.isEmpty {
+            // Shown whenever the message was edited at all, not only when something was
+            // recorded. An entry that silently never appears is indistinguishable from a
+            // missing feature — better to open it and say why it is empty.
+            let wasEdited = netegramMessage.attributes.contains(where: { $0 is EditedMessageAttribute })
+            if canForward || wasEdited {
                 actions.append(.action(ContextMenuActionItem(text: "Netegram", icon: { theme in
                     return generateTintedImage(image: UIImage(bundleImageName: "Item List/Icons/Netegram"), color: theme.actionSheet.primaryTextColor)
                 }, action: { c, _ in
@@ -1963,7 +1967,7 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
                         })))
                     }
 
-                    if !editVersions.isEmpty {
+                    if wasEdited {
                         subItems.append(.action(ContextMenuActionItem(text: "История", icon: { theme in
                             return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Timer"), color: theme.actionSheet.primaryTextColor)
                         }, action: { c, _ in
@@ -1974,6 +1978,14 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
                                 c?.popItems()
                             })))
                             historyItems.append(.separator)
+
+                            if editVersions.isEmpty {
+                                historyItems.append(.action(ContextMenuActionItem(text: "Прошлых версий нет.\nTelegram их не хранит — Netegram запоминает правки только с момента установки и только пока приложение запущено.", textColor: .primary, textLayout: .multiline, icon: { _ in
+                                    return nil
+                                }, action: { c, _ in
+                                    c?.dismiss(completion: {})
+                                })))
+                            }
 
                             // Oldest first, so reading down the list follows the order the
                             // message was actually rewritten in.

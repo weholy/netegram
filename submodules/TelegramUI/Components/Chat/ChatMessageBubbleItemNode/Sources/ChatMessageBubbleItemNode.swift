@@ -755,6 +755,8 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
     
     private var summarizeButtonNode: ChatMessageShareButton?
     private var shareButtonNode: ChatMessageShareButton?
+    /// Netegram: the red bin beside a message the sender tried to take back.
+    private var netegramDeletedNode: ASImageNode?
     
     private let messageAccessibilityArea: AccessibilityAreaNode
 
@@ -5306,6 +5308,25 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
             summarizeButtonNode.removeFromSupernode()
         }
         
+        // Netegram: drawn beside the bubble rather than inside it. A mark inside the text
+        // reads as part of what the person wrote; this has to read as something the app is
+        // saying about the message.
+        if NetegramDeletedMessages.contains(item.message.id) {
+            if strongSelf.netegramDeletedNode == nil {
+                let deletedNode = ASImageNode()
+                deletedNode.displaysAsynchronously = false
+                deletedNode.displayWithoutProcessing = true
+                deletedNode.isUserInteractionEnabled = false
+                deletedNode.contentMode = .scaleAspectFit
+                deletedNode.image = UIImage(systemName: "trash.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 15.0, weight: .semibold))?.withTintColor(UIColor(rgb: 0xFF3B30), renderingMode: .alwaysOriginal)
+                strongSelf.netegramDeletedNode = deletedNode
+                strongSelf.insertSubnode(deletedNode, belowSubnode: strongSelf.messageAccessibilityArea)
+            }
+        } else if let deletedNode = strongSelf.netegramDeletedNode {
+            strongSelf.netegramDeletedNode = nil
+            deletedNode.removeFromSupernode()
+        }
+
         if needsShareButton {
             if strongSelf.shareButtonNode == nil {
                 let shareButtonNode = ChatMessageShareButton()
@@ -5518,6 +5539,17 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
                 animation.animator.updateAlpha(layer: summarizeButtonNode.layer, alpha: (isCurrentlyPlayingMedia || isSidePanelOpen) ? 0.0 : 1.0, completion: nil)
                 animation.animator.updateScale(layer: summarizeButtonNode.layer, scale: (isCurrentlyPlayingMedia || isSidePanelOpen) ? 0.001 : 1.0, completion: nil)
             }
+            if let deletedNode = strongSelf.netegramDeletedNode {
+                // Outside the bubble on the side the message is anchored to, so it never
+                // covers text and never shifts what is already laid out.
+                let markSize = CGSize(width: 20.0, height: 20.0)
+                let markX = incoming ? backgroundFrame.minX - markSize.width - 6.0 : backgroundFrame.maxX + 6.0
+                deletedNode.frame = CGRect(
+                    origin: CGPoint(x: markX, y: backgroundFrame.minY + 4.0),
+                    size: markSize
+                )
+            }
+
             if let shareButtonNode = strongSelf.shareButtonNode {
                 let buttonSize = shareButtonNode.update(presentationData: item.presentationData, controllerInteraction: item.controllerInteraction, chatLocation: item.chatLocation, subject: item.associatedData.subject, message: EngineMessage(item.message), accountPeerId: item.context.account.peerId, disableComments: disablesComments)
                 
