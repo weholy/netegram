@@ -11,7 +11,7 @@ import AppBundle
 ///
 /// Kept by hand: the CI build number counts commits and jumps around, so it says nothing
 /// about how many changes the client itself has gone through. Bump this with each change.
-public let netegramRevision: Int = 42
+public let netegramRevision: Int = 43
 
 /// Logo, name and version at the top of the Netegram screen.
 final class NetegramHeaderItem: ListViewItem, ItemListItem {

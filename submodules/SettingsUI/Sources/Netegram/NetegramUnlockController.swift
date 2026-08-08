@@ -140,12 +140,20 @@ private enum NetegramUnlockEntry: ItemListNodeEntry {
     }
 }
 
+/// A named type rather than a tuple: ValuePromise compares what it is given, and tuples do not
+/// conform to Equatable no matter what they contain.
+private struct NetegramUnlockState: Equatable {
+    var word: String
+    var count: Int
+    var links: [String]
+}
+
 public func netegramUnlockController(context: AccountContext) -> ViewController {
-    let statePromise = ValuePromise<(word: String, count: Int, links: [String])>(
-        (
-            UserDefaults.standard.string(forKey: netegramUnlockWordKey) ?? "",
-            max(1, UserDefaults.standard.object(forKey: netegramUnlockCountKey) as? Int ?? 1),
-            NetegramUnlockLog.load()
+    let statePromise = ValuePromise<NetegramUnlockState>(
+        NetegramUnlockState(
+            word: UserDefaults.standard.string(forKey: netegramUnlockWordKey) ?? "",
+            count: max(1, UserDefaults.standard.object(forKey: netegramUnlockCountKey) as? Int ?? 1),
+            links: NetegramUnlockLog.load()
         ),
         ignoreRepeated: false
     )
@@ -156,7 +164,7 @@ public func netegramUnlockController(context: AccountContext) -> ViewController 
     var presentCopiedImpl: (() -> Void)?
 
     let push: () -> Void = {
-        statePromise.set((currentWord, currentCount, currentLinks))
+        statePromise.set(NetegramUnlockState(word: currentWord, count: currentCount, links: currentLinks))
     }
 
     let arguments = NetegramUnlockArguments(updateWord: { value in
