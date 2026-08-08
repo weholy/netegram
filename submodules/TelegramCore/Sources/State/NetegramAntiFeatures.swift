@@ -88,6 +88,9 @@ func netegramMarkMessagesDeleted(transaction: Transaction, ids: [MessageId]) {
 
             return .update(StoreMessage(
                 id: currentMessage.id,
+                // Keeping the stable id keeps the message in the same place in the list — a
+                // new one would make it animate in as if it had just arrived.
+                customStableId: currentMessage.stableId,
                 globallyUniqueId: currentMessage.globallyUniqueId,
                 groupingKey: currentMessage.groupingKey,
                 threadId: currentMessage.threadId,

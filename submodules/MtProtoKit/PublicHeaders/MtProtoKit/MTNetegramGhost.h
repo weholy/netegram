@@ -13,11 +13,13 @@
 /// The decision is made here, in MTProtoKit, because this is the last place the raw TL payload
 /// of an outgoing call is visible — above this layer a "typing" notification and a "read
 /// history" call are indistinguishable Swift values.
+NS_ASSUME_NONNULL_BEGIN
+
 @interface MTNetegramGhost : NSObject
 
 /// Returns the response to answer with instead of sending, or nil to let the call through.
 /// `payload` is the serialised TL function, starting with its constructor id.
-+ (NSData *)fakeResponseForPayload:(NSData *)payload;
++ (nullable NSData *)fakeResponseForPayload:(NSData *)payload;
 
 /// Seconds to hold a send back for, or 0 to send immediately.
 ///
@@ -39,4 +41,6 @@
 @end
 
 /// Posted when a send starts waiting, so the app can offer to cancel it.
-extern NSString * _Nonnull const MTNetegramDelayedSendStartedNotification;
+extern NSString *const MTNetegramDelayedSendStartedNotification;
+
+NS_ASSUME_NONNULL_END

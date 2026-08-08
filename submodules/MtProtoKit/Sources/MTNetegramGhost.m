@@ -333,7 +333,7 @@ static NSInteger MTGhostSendGeneration = 0;
     }
 }
 
-+ (NSData *)fakeResponseForPayload:(NSData *)payload {
++ (nullable NSData *)fakeResponseForPayload:(NSData *)payload {
     if (payload.length < 4) {
         return nil;
     }
