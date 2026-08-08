@@ -202,7 +202,6 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>telegram</string>
-				<string>netegram</string>
 			</array>
 		</dict>
 		<dict>

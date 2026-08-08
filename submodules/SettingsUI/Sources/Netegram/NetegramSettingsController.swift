@@ -12,7 +12,6 @@ import AccountContext
 private final class NetegramSettingsControllerArguments {
     let openSearch: () -> Void
     let openLook: () -> Void
-    let openUnlock: () -> Void
     let openHideButtons: () -> Void
     let openNavBar: () -> Void
     let openAppearance: () -> Void
@@ -22,10 +21,9 @@ private final class NetegramSettingsControllerArguments {
     let openBackground: () -> Void
     let openAnnouncement: () -> Void
 
-    init(openSearch: @escaping () -> Void, openLook: @escaping () -> Void, openUnlock: @escaping () -> Void, openHideButtons: @escaping () -> Void, openNavBar: @escaping () -> Void, openAppearance: @escaping () -> Void, openLiquidGlass: @escaping () -> Void, openGhost: @escaping () -> Void, openLocalFeatures: @escaping () -> Void, openBackground: @escaping () -> Void, openAnnouncement: @escaping () -> Void) {
+    init(openSearch: @escaping () -> Void, openLook: @escaping () -> Void, openHideButtons: @escaping () -> Void, openNavBar: @escaping () -> Void, openAppearance: @escaping () -> Void, openLiquidGlass: @escaping () -> Void, openGhost: @escaping () -> Void, openLocalFeatures: @escaping () -> Void, openBackground: @escaping () -> Void, openAnnouncement: @escaping () -> Void) {
         self.openSearch = openSearch
         self.openLook = openLook
-        self.openUnlock = openUnlock
         self.openHideButtons = openHideButtons
         self.openNavBar = openNavBar
         self.openAppearance = openAppearance
@@ -74,7 +72,6 @@ private enum NetegramSettingsSection: Int32 {
     case header
     case search
     case look
-    case unlock
     case hideButtons
     case navBar
     case appearance
@@ -89,7 +86,6 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
     case logoHeader(Bool)
     case search
     case look
-    case unlock
     case hideButtons
     case navBar
     case appearance
@@ -108,8 +104,6 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
             return NetegramSettingsSection.search.rawValue
         case .look:
             return NetegramSettingsSection.look.rawValue
-        case .unlock:
-            return NetegramSettingsSection.unlock.rawValue
         case .hideButtons:
             return NetegramSettingsSection.hideButtons.rawValue
         case .navBar:
@@ -139,9 +133,9 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
             return 1
         case .appearance:
             return 2
-        case .liquidGlass:
-            return 3
         case .ghost:
+            return 3
+        case .liquidGlass:
             return 4
         case .hideButtons:
             return 5
@@ -153,8 +147,6 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
             return 8
         case .announcement:
             return 9
-        case .unlock:
-            return 10
         case .appearanceFooter:
             return 11
         }
@@ -207,10 +199,6 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
             return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, icon: netegramRowIcon("photo", presentationData.theme.list.itemPrimaryTextColor), title: NetegramBackgroundStrings.title, label: "", additionalDetailLabel: "Видео или фото позади экранов", sectionId: self.section, style: .blocks, action: {
                 arguments.openBackground()
             })
-        case .unlock:
-            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, icon: netegramRowIcon("link", presentationData.theme.list.itemPrimaryTextColor), title: NetegramUnlockStrings.title, label: "", additionalDetailLabel: NetegramUnlockStrings.subtitle, sectionId: self.section, style: .blocks, action: {
-                arguments.openUnlock()
-            })
         case .announcement:
             return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, icon: netegramRowIcon("megaphone", presentationData.theme.list.itemPrimaryTextColor), title: NetegramAnnouncementStrings.title, label: "", additionalDetailLabel: "Плашка в списке чатов", sectionId: self.section, style: .blocks, action: {
                 arguments.openAnnouncement()
@@ -223,20 +211,15 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
 
 /// Rows offered to everyone. The rest of the screen is build-owner only — those features are
 /// either unfinished or specific to how this build is put together.
-/// What a fresh install shows. The header is left out: the logo and version belong to whoever
-/// builds this, and a first-time user has nothing to do with them.
-private let netegramPublicEntries: [NetegramSettingsEntry] = [.look, .ghost, .localFeatures]
+/// What everyone but the owner sees. The header is left out: the logo and version belong to
+/// whoever builds this, and say nothing to anyone else.
+private let netegramPublicEntries: [NetegramSettingsEntry] = [.ghost, .liquidGlass, .navBar]
 
-/// Everything an unlock link adds, in the same order the owner sees them.
-private let netegramUnlockedEntries: [NetegramSettingsEntry] = [.look, .liquidGlass, .ghost, .hideButtons, .navBar, .localFeatures]
-
-private func netegramSettingsEntries(isOwner: Bool, isUnlocked: Bool) -> [NetegramSettingsEntry] {
-    // The preview makes the owner take the stranger's branch, so what other people get can be
-    // checked without a second account.
-    guard isOwner, !NetegramUnlock.previewsAsRegularUser else {
-        return isUnlocked ? netegramUnlockedEntries : netegramPublicEntries
+private func netegramSettingsEntries(isOwner: Bool) -> [NetegramSettingsEntry] {
+    guard isOwner else {
+        return netegramPublicEntries
     }
-    return [.logoHeader(true), .search, .look, .appearance, .liquidGlass, .ghost, .hideButtons, .navBar, .localFeatures, .background, .unlock, .announcement]
+    return [.logoHeader(true), .search, .look, .appearance, .ghost, .liquidGlass, .hideButtons, .navBar, .localFeatures, .background, .announcement]
 }
 
 /// Netegram: the account this build belongs to.
@@ -272,8 +255,6 @@ public func netegramSettingsController(context: AccountContext) -> ViewControlle
         pushControllerImpl?(netegramSearchController(context: context))
     }, openLook: {
         pushControllerImpl?(netegramLookController(context: context))
-    }, openUnlock: {
-        pushControllerImpl?(netegramUnlockController(context: context))
     }, openHideButtons: {
         pushControllerImpl?(netegramHideProfileButtonsController(context: context))
     }, openNavBar: {
@@ -292,8 +273,6 @@ public func netegramSettingsController(context: AccountContext) -> ViewControlle
         pushControllerImpl?(netegramAnnouncementController(context: context))
     })
 
-    let unlockSignal = NetegramUnlock.signal
-
     let ownerSignal = context.engine.data.subscribe(
         TelegramEngine.EngineData.Item.Peer.Peer(id: context.account.peerId)
     )
@@ -304,11 +283,10 @@ public func netegramSettingsController(context: AccountContext) -> ViewControlle
 
     let signal = combineLatest(queue: .mainQueue(),
         context.sharedContext.presentationData,
-        ownerSignal,
-        unlockSignal
+        ownerSignal
     )
     |> deliverOnMainQueue
-    |> map { presentationData, isOwner, isUnlocked -> (ItemListControllerState, (ItemListNodeState, Any)) in
+    |> map { presentationData, isOwner -> (ItemListControllerState, (ItemListNodeState, Any)) in
         let controllerState = ItemListControllerState(
             presentationData: ItemListPresentationData(presentationData),
             title: .text(NetegramStrings.netegram),
@@ -318,7 +296,7 @@ public func netegramSettingsController(context: AccountContext) -> ViewControlle
         )
         let listState = ItemListNodeState(
             presentationData: ItemListPresentationData(presentationData),
-            entries: netegramSettingsEntries(isOwner: isOwner, isUnlocked: isUnlocked),
+            entries: netegramSettingsEntries(isOwner: isOwner),
             style: .blocks,
             animateChanges: false
         )
