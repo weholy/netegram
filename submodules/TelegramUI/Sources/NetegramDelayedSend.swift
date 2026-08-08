@@ -1,6 +1,7 @@
 import Foundation
 import UIKit
 import Display
+import SwiftSignalKit
 import MtProtoKit
 import TelegramPresentationData
 import AccountContext
@@ -24,7 +25,9 @@ public final class NetegramDelayedSendNotice {
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(self.sendStarted(_:)),
-            name: NSNotification.Name(MTNetegramDelayedSendStartedNotification),
+            // Imported as NSNotification.Name already: Objective-C string constants whose
+            // name ends in "Notification" are bridged to that type, not to String.
+            name: MTNetegramDelayedSendStartedNotification,
             object: nil
         )
     }
