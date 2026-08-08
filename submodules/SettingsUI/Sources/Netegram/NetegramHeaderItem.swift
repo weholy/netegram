@@ -11,15 +11,19 @@ import AppBundle
 ///
 /// Kept by hand: the CI build number counts commits and jumps around, so it says nothing
 /// about how many changes the client itself has gone through. Bump this with each change.
-public let netegramRevision: Int = 36
+public let netegramRevision: Int = 37
 
 /// Logo, name and version at the top of the Netegram screen.
 final class NetegramHeaderItem: ListViewItem, ItemListItem {
     let theme: PresentationTheme
+    /// The revision counts changes to this fork, which is a number only the person making them
+    /// has any use for. Everyone else sees the app version alone.
+    let showsRevision: Bool
     let sectionId: ItemListSectionId
 
-    init(theme: PresentationTheme, sectionId: ItemListSectionId) {
+    init(theme: PresentationTheme, showsRevision: Bool, sectionId: ItemListSectionId) {
         self.theme = theme
+        self.showsRevision = showsRevision
         self.sectionId = sectionId
     }
 
@@ -102,7 +106,7 @@ final class NetegramHeaderItemNode: ListViewItemNode {
                 insets: UIEdgeInsets()
             ))
             let (versionLayout, versionApply) = makeVersionLayout(TextNodeLayoutArguments(
-                attributedString: NSAttributedString(string: "\(appVersion) (\(netegramRevision))", font: Font.semibold(17.0), textColor: item.theme.list.itemSecondaryTextColor),
+                attributedString: NSAttributedString(string: item.showsRevision ? "\(appVersion) (\(netegramRevision))" : appVersion, font: Font.semibold(17.0), textColor: item.theme.list.itemSecondaryTextColor),
                 maximumNumberOfLines: 1,
                 truncationType: .end,
                 constrainedSize: CGSize(width: params.width - 32.0, height: 24.0),
