@@ -5540,10 +5540,12 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
                 animation.animator.updateScale(layer: summarizeButtonNode.layer, scale: (isCurrentlyPlayingMedia || isSidePanelOpen) ? 0.001 : 1.0, completion: nil)
             }
             if let deletedNode = strongSelf.netegramDeletedNode {
-                // Outside the bubble on the side the message is anchored to, so it never
-                // covers text and never shifts what is already laid out.
+                // Outside the bubble, on whichever side has room: an incoming message sits
+                // against the left edge with the avatar beside it, so a mark placed to its left
+                // lands off screen — which is why it was never visible. Being outside also
+                // means it never covers text and never shifts what is already laid out.
                 let markSize = CGSize(width: 20.0, height: 20.0)
-                let markX = incoming ? backgroundFrame.minX - markSize.width - 6.0 : backgroundFrame.maxX + 6.0
+                let markX = incoming ? backgroundFrame.maxX + 6.0 : backgroundFrame.minX - markSize.width - 6.0
                 deletedNode.frame = CGRect(
                     origin: CGPoint(x: markX, y: backgroundFrame.minY + 4.0),
                     size: markSize
