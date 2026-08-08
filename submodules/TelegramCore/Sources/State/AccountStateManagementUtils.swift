@@ -4440,6 +4440,13 @@ func replayFinalState(
                     }
                 }
             case let .DeleteMessagesWithGlobalIds(ids):
+                // Netegram: checked here, at the moment of removal, and not only where the
+                // operation is built. This is the single place a message actually leaves the
+                // database on this path, so a gate here cannot be routed around.
+                if NetegramAnti.revoke {
+                    netegramMarkMessagesDeleted(transaction: transaction, globalIds: ids)
+                    break
+                }
                 var resourceIds: [MediaResourceId] = []
                 transaction.deleteMessagesWithGlobalIds(ids, forEachMedia: { media in
                     addMessageMediaResourceIdsToRemove(media: media, resourceIds: &resourceIds)
@@ -4448,7 +4455,20 @@ func replayFinalState(
                     let _ = mediaBox.removeCachedResources(Array(Set(resourceIds)), force: true).start()
                 }
                 deletedMessageIds.append(contentsOf: ids.map { .global($0) })
-            case let .DeleteMessages(ids):
+            case let .DeleteMessages(allIds):
+                // Expiring messages arrive on this same path but answer to their own switch,
+                // so they are told apart by namespace rather than being swept up by anti-revoke.
+                var ids = allIds
+                if NetegramAnti.revoke {
+                    let revoked = allIds.filter { $0.namespace != Namespaces.Message.EphemeralLocal }
+                    if !revoked.isEmpty {
+                        netegramMarkMessagesDeleted(transaction: transaction, ids: revoked)
+                    }
+                    ids = allIds.filter { $0.namespace == Namespaces.Message.EphemeralLocal }
+                }
+                if ids.isEmpty {
+                    break
+                }
                 _internal_deleteMessages(transaction: transaction, mediaBox: mediaBox, ids: ids, manualAddMessageThreadStatsDifference: { id, add, remove in
                     addMessageThreadStatsDifference(threadKey: id, remove: remove, addedMessagePeer: nil, addedMessageId: nil, isOutgoing: false)
                 })

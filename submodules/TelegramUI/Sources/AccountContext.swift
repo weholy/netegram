@@ -820,6 +820,35 @@ public final class AccountContextImpl: AccountContext {
     }
     
     public func requestCall(peerId: PeerId, isVideo: Bool, completion: @escaping () -> Void) {
+        // Netegram: the call button sits next to other, harmless buttons, and a misfire rings
+        // on someone else's phone. Confirmation is asked here, at the single door every call
+        // goes through, rather than at each place that offers to start one.
+        guard netegramConfirmCalls() else {
+            self.netegramPerformRequestCall(peerId: peerId, isVideo: isVideo, completion: completion)
+            return
+        }
+
+        let presentationData = self.sharedContext.currentPresentationData.with { $0 }
+        let _ = (self.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: peerId))
+        |> deliverOnMainQueue).start(next: { [weak self] peer in
+            guard let self else {
+                return
+            }
+            let name = peer?.compactDisplayTitle ?? ""
+            let text = name.isEmpty ? "Начать звонок?" : "Позвонить \(name)?"
+            self.sharedContext.mainWindow?.present(
+                textAlertController(context: self, title: nil, text: text, actions: [
+                    TextAlertAction(type: .genericAction, title: presentationData.strings.Common_Cancel, action: {}),
+                    TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: { [weak self] in
+                        self?.netegramPerformRequestCall(peerId: peerId, isVideo: isVideo, completion: completion)
+                    })
+                ]),
+                on: .root
+            )
+        })
+    }
+
+    private func netegramPerformRequestCall(peerId: PeerId, isVideo: Bool, completion: @escaping () -> Void) {
         guard let callResult = self.sharedContext.callManager?.requestCall(context: self, peerId: peerId, isVideo: isVideo, endCurrentIfAny: false) else {
             return
         }

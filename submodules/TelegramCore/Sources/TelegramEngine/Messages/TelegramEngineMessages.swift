@@ -1011,6 +1011,12 @@ public extension TelegramEngine {
         }
         
         public func storySubscriptions(isHidden: Bool, tempKeepNewlyArchived: Bool = false) -> Signal<EngineStorySubscriptions, NoError> {
+            // Netegram: hiding stories answers with an empty list rather than removing the bar
+            // in the chat list. Every surface that shows stories asks this one question, so one
+            // answer covers them all — and nothing is fetched that is not going to be shown.
+            if netegramHideStories() {
+                return .single(EngineStorySubscriptions(accountItem: nil, items: [], hasMoreToken: nil))
+            }
             return `deferred` { () -> Signal<EngineStorySubscriptions, NoError> in
                 let debugTimerSignal: Signal<Bool, NoError>
 #if DEBUG && false

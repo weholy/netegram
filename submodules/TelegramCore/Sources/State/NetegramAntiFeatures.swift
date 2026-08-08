@@ -28,6 +28,21 @@ public func netegramAllowSavingProtectedContent() -> Bool {
     return UserDefaults.standard.bool(forKey: "netegram.ghost.allowSaving")
 }
 
+/// Netegram: true while the stories bar is hidden everywhere.
+public func netegramHideStories() -> Bool {
+    return UserDefaults.standard.bool(forKey: "netegram.ghost.hideStories")
+}
+
+/// Netegram: true while a call has to be confirmed before it is placed.
+public func netegramConfirmCalls() -> Bool {
+    return UserDefaults.standard.bool(forKey: "netegram.ghost.confirmCalls")
+}
+
+/// Netegram: true while picked audio files are sent as voice messages.
+public func netegramSendAudioAsVoice() -> Bool {
+    return UserDefaults.standard.bool(forKey: "netegram.ghost.sendAsVoice")
+}
+
 /// Netegram: how much bigger to make download chunks. Nil while the boost is off.
 ///
 /// A larger part means fewer round trips, which is where the speed comes from. The cost is

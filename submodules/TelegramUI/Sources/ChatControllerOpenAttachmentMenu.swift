@@ -1511,7 +1511,11 @@ extension ChatControllerImpl {
                                     var attributes: [TelegramMediaFileAttribute] = []
                                     attributes.append(.FileName(fileName: item.fileName))
                                     if let audioMetadata = item.audioMetadata {
-                                        attributes.append(.Audio(isVoice: false, duration: audioMetadata.duration, title: audioMetadata.title, performer: audioMetadata.performer, waveform: nil))
+                                        // Netegram: marking a picked audio file as a voice
+                                        // message is the whole difference between the two —
+                                        // the file is unchanged, only this flag decides
+                                        // whether it arrives as a track or as a voice bubble.
+                                        attributes.append(.Audio(isVoice: netegramSendAudioAsVoice(), duration: audioMetadata.duration, title: audioMetadata.title, performer: audioMetadata.performer, waveform: nil))
                                     }
 
                                     let file = TelegramMediaFile(fileId: EngineMedia.Id(namespace: Namespaces.Media.LocalFile, id: fileId), partialReference: nil, resource: ICloudFileResource(urlData: item.urlData, thumbnail: false), previewRepresentations: previewRepresentations, videoThumbnails: [], immediateThumbnailData: nil, mimeType: mimeType, size: Int64(item.fileSize), attributes: attributes, alternativeRepresentations: [])

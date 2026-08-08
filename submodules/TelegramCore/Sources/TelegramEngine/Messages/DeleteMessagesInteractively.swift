@@ -151,9 +151,17 @@ func deleteMessagesInteractively(transaction: Transaction, stateManager: Account
             }
         }
     }
-    _internal_deleteMessages(transaction: transaction, mediaBox: postbox.mediaBox, ids: messageIds.map(\.messageId))
-    
-    stateManager?.notifyDeletedMessages(messageIds: messageIds.map(\.messageId))
+    // Netegram: anti-revoke keeps your own deleted messages too. The request still goes to the
+    // server, so the message really is gone for everyone else — only your copy stays, marked.
+    // Notifying the state manager is skipped along with the removal, otherwise the chat would
+    // be told the message is gone while it is still sitting in the database.
+    if NetegramAnti.revoke {
+        netegramMarkMessagesDeleted(transaction: transaction, ids: messageIds.map(\.messageId))
+    } else {
+        _internal_deleteMessages(transaction: transaction, mediaBox: postbox.mediaBox, ids: messageIds.map(\.messageId))
+
+        stateManager?.notifyDeletedMessages(messageIds: messageIds.map(\.messageId))
+    }
     
     if !uniqueIds.isEmpty && removeIfPossiblyDelivered {
         stateManager?.removePossiblyDeliveredMessages(uniqueIds: uniqueIds)
