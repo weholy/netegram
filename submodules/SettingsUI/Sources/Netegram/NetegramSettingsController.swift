@@ -35,6 +35,23 @@ private final class NetegramSettingsControllerArguments {
     }
 }
 
+
+/// Netegram: the small symbol at the left of each row on the Netegram screen.
+///
+/// SF Symbols rather than drawn artwork: the set already covers every idea on this screen, it
+/// follows the system weight and scales with the text, and there is nothing to redraw when a
+/// row is renamed or added.
+///
+/// Rendered as `.alwaysOriginal` because the row does not tint the image it is handed — the
+/// colour has to be baked in here.
+private func netegramRowIcon(_ systemName: String, _ color: UIColor) -> UIImage? {
+    let configuration = UIImage.SymbolConfiguration(pointSize: 20.0, weight: .regular)
+    guard let image = UIImage(systemName: systemName, withConfiguration: configuration) else {
+        return nil
+    }
+    return image.withTintColor(color, renderingMode: .alwaysOriginal)
+}
+
 // One section per row: rows sharing a section are drawn inside a single rounded block, so
 // each entry needs its own to stand apart.
 private enum NetegramSettingsSection: Int32 {
@@ -130,47 +147,47 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
         let arguments = arguments as! NetegramSettingsControllerArguments
         switch self {
         case .search:
-            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramSearchStrings.title, label: "", additionalDetailLabel: "Найти функцию Netegram", sectionId: self.section, style: .blocks, action: {
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, icon: netegramRowIcon("magnifyingglass", presentationData.theme.list.itemAccentColor), title: NetegramSearchStrings.title, label: "", additionalDetailLabel: "Найти функцию Netegram", sectionId: self.section, style: .blocks, action: {
                 arguments.openSearch()
             })
         case .logoHeader:
             return NetegramHeaderItem(theme: presentationData.theme, sectionId: self.section)
         case .look:
-            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramLookStrings.title, label: "", additionalDetailLabel: NetegramLookStrings.subtitle, sectionId: self.section, style: .blocks, action: {
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, icon: netegramRowIcon("paintbrush", presentationData.theme.list.itemAccentColor), title: NetegramLookStrings.title, label: "", additionalDetailLabel: NetegramLookStrings.subtitle, sectionId: self.section, style: .blocks, action: {
                 arguments.openLook()
             })
         case .hideButtons:
-            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramLookStrings.hideButtonsTitle, label: "", additionalDetailLabel: NetegramLookStrings.hideButtonsSubtitle, sectionId: self.section, style: .blocks, action: {
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, icon: netegramRowIcon("person.crop.circle.badge.minus", presentationData.theme.list.itemAccentColor), title: NetegramLookStrings.hideButtonsTitle, label: "", additionalDetailLabel: NetegramLookStrings.hideButtonsSubtitle, sectionId: self.section, style: .blocks, action: {
                 arguments.openHideButtons()
             })
         // On this screen the description belongs inside the cell, under the title. The
         // screens these rows lead to keep their descriptions under the block instead.
         case .appearance:
-            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramStrings.appearance, label: "", additionalDetailLabel: "Логотип, иконки", sectionId: self.section, style: .blocks, action: {
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, icon: netegramRowIcon("paintpalette", presentationData.theme.list.itemAccentColor), title: NetegramStrings.appearance, label: "", additionalDetailLabel: "Логотип, иконки", sectionId: self.section, style: .blocks, action: {
                 arguments.openAppearance()
             })
         case .liquidGlass:
-            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramStrings.liquidGlass, label: "", additionalDetailLabel: "Жидкое стекло в интерфейсе", sectionId: self.section, style: .blocks, action: {
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, icon: netegramRowIcon("drop", presentationData.theme.list.itemAccentColor), title: NetegramStrings.liquidGlass, label: "", additionalDetailLabel: "Жидкое стекло в интерфейсе", sectionId: self.section, style: .blocks, action: {
                 arguments.openLiquidGlass()
             })
         case .navBar:
-            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramLookStrings.navBarTitle, label: "", additionalDetailLabel: NetegramLookStrings.navBarSubtitle, sectionId: self.section, style: .blocks, action: {
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, icon: netegramRowIcon("square.grid.2x2", presentationData.theme.list.itemAccentColor), title: NetegramLookStrings.navBarTitle, label: "", additionalDetailLabel: NetegramLookStrings.navBarSubtitle, sectionId: self.section, style: .blocks, action: {
                 arguments.openNavBar()
             })
         case .ghost:
-            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramGhostStrings.title, label: "", additionalDetailLabel: NetegramGhostStrings.subtitle, sectionId: self.section, style: .blocks, action: {
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, icon: netegramRowIcon("eye.slash", presentationData.theme.list.itemAccentColor), title: NetegramGhostStrings.title, label: "", additionalDetailLabel: NetegramGhostStrings.subtitle, sectionId: self.section, style: .blocks, action: {
                 arguments.openGhost()
             })
         case .localFeatures:
-            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramLocalStrings.localFeatures, label: "", additionalDetailLabel: "Премиум, звёзды, эмодзи", sectionId: self.section, style: .blocks, action: {
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, icon: netegramRowIcon("sparkles", presentationData.theme.list.itemAccentColor), title: NetegramLocalStrings.localFeatures, label: "", additionalDetailLabel: "Премиум, звёзды, эмодзи", sectionId: self.section, style: .blocks, action: {
                 arguments.openLocalFeatures()
             })
         case .background:
-            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramBackgroundStrings.title, label: "", additionalDetailLabel: "Видео или фото позади экранов", sectionId: self.section, style: .blocks, action: {
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, icon: netegramRowIcon("photo", presentationData.theme.list.itemAccentColor), title: NetegramBackgroundStrings.title, label: "", additionalDetailLabel: "Видео или фото позади экранов", sectionId: self.section, style: .blocks, action: {
                 arguments.openBackground()
             })
         case .announcement:
-            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramAnnouncementStrings.title, label: "", additionalDetailLabel: "Плашка в списке чатов", sectionId: self.section, style: .blocks, action: {
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, icon: netegramRowIcon("megaphone", presentationData.theme.list.itemAccentColor), title: NetegramAnnouncementStrings.title, label: "", additionalDetailLabel: "Плашка в списке чатов", sectionId: self.section, style: .blocks, action: {
                 arguments.openAnnouncement()
             })
         case .appearanceFooter:
@@ -181,7 +198,7 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
 
 /// Rows offered to everyone. The rest of the screen is build-owner only — those features are
 /// either unfinished or specific to how this build is put together.
-private let netegramPublicEntries: [NetegramSettingsEntry] = [.logoHeader, .appearance, .liquidGlass, .ghost, .hideButtons, .navBar, .localFeatures]
+private let netegramPublicEntries: [NetegramSettingsEntry] = [.logoHeader, .look, .liquidGlass, .ghost, .hideButtons, .navBar, .localFeatures]
 
 private func netegramSettingsEntries(isOwner: Bool) -> [NetegramSettingsEntry] {
     guard isOwner else {
