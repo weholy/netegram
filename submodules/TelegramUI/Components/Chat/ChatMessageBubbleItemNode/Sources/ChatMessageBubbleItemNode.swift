@@ -5318,7 +5318,7 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
                 deletedNode.displayWithoutProcessing = true
                 deletedNode.isUserInteractionEnabled = false
                 deletedNode.contentMode = .scaleAspectFit
-                deletedNode.image = UIImage(systemName: "trash.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 15.0, weight: .semibold))?.withTintColor(UIColor(rgb: 0xFF3B30), renderingMode: .alwaysOriginal)
+                deletedNode.image = netegramDeletedMarkImage()
                 strongSelf.netegramDeletedNode = deletedNode
                 strongSelf.insertSubnode(deletedNode, belowSubnode: strongSelf.messageAccessibilityArea)
             }
@@ -5544,10 +5544,12 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
                 // against the left edge with the avatar beside it, so a mark placed to its left
                 // lands off screen — which is why it was never visible. Being outside also
                 // means it never covers text and never shifts what is already laid out.
-                let markSize = CGSize(width: 20.0, height: 20.0)
-                let markX = incoming ? backgroundFrame.maxX + 6.0 : backgroundFrame.minX - markSize.width - 6.0
+                let markSize = CGSize(width: 18.0, height: 18.0)
+                let markX = incoming ? backgroundFrame.maxX + 3.0 : backgroundFrame.minX - markSize.width - 3.0
+                // Sat against the bottom of the bubble rather than its top: that is where the
+                // eye already is after reading the message and the timestamp.
                 deletedNode.frame = CGRect(
-                    origin: CGPoint(x: markX, y: backgroundFrame.minY + 4.0),
+                    origin: CGPoint(x: markX, y: backgroundFrame.maxY - markSize.height),
                     size: markSize
                 )
             }
@@ -7909,5 +7911,32 @@ public final class NameNavigateButton: HighlightableButton {
             titleTopicIconView.view?.removeFromSuperview()
             self.titleTopicIconComponent = nil
         }
+    }
+}
+
+/// Netegram: the red bin drawn beside a message someone tried to take back.
+///
+/// Rasterised with the colour baked in, not handed over as a tinted template. The node it goes
+/// into draws the image's pixels directly, which skips the tint that lives on UIImage — a
+/// template symbol drawn that way comes out as its black mask.
+private func netegramDeletedMarkImage() -> UIImage? {
+    let size = CGSize(width: 18.0, height: 18.0)
+    let configuration = UIImage.SymbolConfiguration(pointSize: 14.0, weight: .semibold)
+    guard let symbol = UIImage(systemName: "trash.fill", withConfiguration: configuration) else {
+        return nil
+    }
+    return UIGraphicsImageRenderer(size: size).image { context in
+        UIColor(rgb: 0xFF3B30).setFill()
+        let drawSize = symbol.size
+        let rect = CGRect(
+            x: (size.width - drawSize.width) / 2.0,
+            y: (size.height - drawSize.height) / 2.0,
+            width: drawSize.width,
+            height: drawSize.height
+        )
+        // The symbol supplies the shape; the fill above supplies the colour.
+        symbol.withRenderingMode(.alwaysTemplate).draw(in: rect)
+        context.cgContext.setBlendMode(.sourceIn)
+        context.cgContext.fill(CGRect(origin: CGPoint(), size: size))
     }
 }
