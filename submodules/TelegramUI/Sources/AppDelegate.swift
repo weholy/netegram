@@ -2537,6 +2537,27 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
     }
     
     private func openUrl(url: URL) {
+        // Netegram: unlock links are answered here, before the URL reaches Telegram's own
+        // handling — it has no idea what netegram:// means and would treat it as unknown.
+        // Checked offline: the link carries its own signature, so no account or network is
+        // needed and it works on a fresh install before anyone has signed in.
+        if let code = NetegramUnlock.code(from: url) {
+            let result = NetegramUnlock.redeem(code: code)
+            let text: String
+            switch result {
+            case .unlocked:
+                text = "Функции открыты. Загляните в Настройки → Netegram."
+            case .alreadyUsed:
+                text = "Эта ссылка уже была использована на этом устройстве."
+            case .invalid:
+                text = "Ссылка недействительна."
+            }
+            let alert = UIAlertController(title: "Netegram", message: text, preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "OK", style: .default))
+            self.mainWindow?.presentNative(alert)
+            return
+        }
+
         let _ = (self.sharedContextPromise.get()
         |> take(1)
         |> mapToSignal { sharedApplicationContext -> Signal<(SharedAccountContextImpl, AuthorizedApplicationContext?, UnauthorizedApplicationContext?), NoError> in

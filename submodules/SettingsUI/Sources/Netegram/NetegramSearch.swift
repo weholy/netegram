@@ -84,12 +84,6 @@ func netegramSearchEntries() -> [NetegramSearchEntryDescriptor] {
             open: { context, push in push(netegramLocalStarsController(context: context)) }
         ),
         NetegramSearchEntryDescriptor(
-            title: NetegramLocalStrings.premiumEmojiTitle,
-            breadcrumb: "Локальные функции",
-            alternate: ["эмодзи", "emoji", "боты", "премиум"],
-            open: { context, push in push(netegramLocalFeaturesController(context: context)) }
-        ),
-        NetegramSearchEntryDescriptor(
             title: NetegramBackgroundStrings.videoTitle,
             breadcrumb: "Фон приложения",
             alternate: ["видео", "video", "фон", "обои"],
