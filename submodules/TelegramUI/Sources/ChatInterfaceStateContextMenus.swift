@@ -1933,6 +1933,70 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
             }
         }
         
+        // Netegram: everything this fork adds to the message menu lives behind one entry, so
+        // the menu keeps its familiar length and our additions are recognisably ours.
+        do {
+            let netegramMessage = message
+            let canForward = data.messageActions.options.contains(.forward) && !isCopyProtected
+            let editVersions = NetegramEditHistory.versions(id: netegramMessage.id)
+
+            if canForward || !editVersions.isEmpty {
+                actions.append(.action(ContextMenuActionItem(text: "Netegram", icon: { theme in
+                    return generateTintedImage(image: UIImage(bundleImageName: "Item List/Icons/Netegram"), color: theme.actionSheet.primaryTextColor)
+                }, action: { c, _ in
+                    var subItems: [ContextMenuItem] = []
+
+                    subItems.append(.action(ContextMenuActionItem(text: chatPresentationInterfaceState.strings.Common_Back, textColor: .primary, icon: { theme in
+                        return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Back"), color: theme.actionSheet.primaryTextColor)
+                    }, iconSource: nil, iconPosition: .left, action: { c, _ in
+                        c?.popItems()
+                    })))
+                    subItems.append(.separator)
+
+                    if canForward {
+                        subItems.append(.action(ContextMenuActionItem(text: "Переслать без автора", icon: { theme in
+                            return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Forward"), color: theme.actionSheet.primaryTextColor)
+                        }, action: { _, f in
+                            NetegramForwardWithoutAuthor.request()
+                            interfaceInteraction.forwardMessages(selectAll || isImage ? messages : [netegramMessage])
+                            f(.dismissWithoutContent)
+                        })))
+                    }
+
+                    if !editVersions.isEmpty {
+                        subItems.append(.action(ContextMenuActionItem(text: "История", icon: { theme in
+                            return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Timer"), color: theme.actionSheet.primaryTextColor)
+                        }, action: { c, _ in
+                            var historyItems: [ContextMenuItem] = []
+                            historyItems.append(.action(ContextMenuActionItem(text: chatPresentationInterfaceState.strings.Common_Back, textColor: .primary, icon: { theme in
+                                return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Back"), color: theme.actionSheet.primaryTextColor)
+                            }, iconSource: nil, iconPosition: .left, action: { c, _ in
+                                c?.popItems()
+                            })))
+                            historyItems.append(.separator)
+
+                            // Oldest first, so reading down the list follows the order the
+                            // message was actually rewritten in.
+                            let formatter = DateFormatter()
+                            formatter.dateFormat = "dd.MM.yy HH:mm"
+                            for version in editVersions {
+                                let stamp = formatter.string(from: Date(timeIntervalSince1970: Double(version.replacedAt)))
+                                historyItems.append(.action(ContextMenuActionItem(text: "\(stamp)\n\(version.text)", textColor: .primary, textLayout: .multiline, icon: { _ in
+                                    return nil
+                                }, action: { c, _ in
+                                    c?.dismiss(completion: {})
+                                })))
+                            }
+
+                            c?.pushItems(items: .single(ContextController.Items(content: .list(historyItems))))
+                        })))
+                    }
+
+                    c?.pushItems(items: .single(ContextController.Items(content: .list(subItems))))
+                })))
+            }
+        }
+
         if data.messageActions.options.contains(.report) {
             actions.append(.action(ContextMenuActionItem(text: chatPresentationInterfaceState.strings.Conversation_ContextMenuReport, icon: { theme in
                 return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Report"), color: theme.actionSheet.primaryTextColor)

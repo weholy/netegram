@@ -292,3 +292,26 @@ private final class ChatNetegramQuickActionsContextItemNode: ASDisplayNode, Cont
     func performAction() {
     }
 }
+
+
+/// Netegram: one-shot request to forward the next batch without the author's name.
+///
+/// The forward flow reads its options from the composer's interface state, and the context
+/// menu has no way to write there — it is handed an interaction that cannot update chat state.
+/// So the intent is parked here and consumed where the forward attribute is actually built.
+///
+/// Cleared on read: it describes one tap, and a leftover flag would silently strip the author
+/// from the next ordinary forward.
+public enum NetegramForwardWithoutAuthor {
+    private static var pending = false
+
+    public static func request() {
+        NetegramForwardWithoutAuthor.pending = true
+    }
+
+    public static func consume() -> Bool {
+        let value = NetegramForwardWithoutAuthor.pending
+        NetegramForwardWithoutAuthor.pending = false
+        return value
+    }
+}

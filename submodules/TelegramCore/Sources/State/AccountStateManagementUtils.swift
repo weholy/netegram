@@ -4514,6 +4514,11 @@ func replayFinalState(
                 if netegramShouldIgnoreEdit(transaction: transaction, id: id) {
                     break
                 }
+                // Recorded before the edit lands, because afterwards the old text is gone and
+                // the server will never hand it back.
+                if let previousMessage = transaction.getMessage(id) {
+                    NetegramEditHistory.record(id: id, previousText: previousMessage.text, newText: message.text, timestamp: message.timestamp)
+                }
                 var generatedEvent: (reactionAuthor: Peer, reaction: MessageReaction.Reaction, message: Message, timestamp: Int32)?
                 transaction.updateMessage(id, update: { previousMessage in
                     var updatedFlags = message.flags
