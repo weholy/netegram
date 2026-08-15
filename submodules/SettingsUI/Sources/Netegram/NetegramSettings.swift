@@ -78,6 +78,7 @@ public final class NetegramSettings {
 
     public func setUseOriginalTelegramLogo(_ value: Bool) {
         UserDefaults.standard.set(value, forKey: useOriginalTelegramLogoKey)
+        UserDefaults.standard.synchronize()
         self.valuePromise.set(value)
     }
 
@@ -93,6 +94,7 @@ public final class NetegramSettings {
 
     public func setCustomSettingsIcons(_ value: Bool) {
         UserDefaults.standard.set(value, forKey: customSettingsIconsKey)
+        UserDefaults.standard.synchronize()
         self.customIconsPromise.set(value)
     }
 
@@ -111,12 +113,14 @@ public final class NetegramSettings {
 
     public func setLiquidGlassMessages(_ value: Bool) {
         UserDefaults.standard.set(value, forKey: liquidGlassMessagesKey)
+        UserDefaults.standard.synchronize()
         self.pushLiquidGlass()
     }
 
 
     public func setLiquidGlassEverywhere(_ value: Bool) {
         UserDefaults.standard.set(value, forKey: liquidGlassEverywhereKey)
+        UserDefaults.standard.synchronize()
         self.pushLiquidGlass()
     }
 

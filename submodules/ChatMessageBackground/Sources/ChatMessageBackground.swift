@@ -141,6 +141,9 @@ public class ChatMessageBackground: ASDisplayNode {
         if let imageFrame = self.imageFrame {
             imageView.frame = imageFrame
         }
+
+        // Created lazily and always visible, so it would cover a glass that is already up.
+        self.applyNetegramGlassVisibility()
     }
     
     public func updateLayout(size: CGSize, transition: ContainedViewLayoutTransition) {
@@ -151,6 +154,22 @@ public class ChatMessageBackground: ASDisplayNode {
         }
         transition.updateFrame(node: self.outlineImageNode, frame: CGRect(origin: CGPoint(), size: size).insetBy(dx: -1.0, dy: -1.0))
         self.updateNetegramGlass(size: size, transition: ComponentTransition(transition))
+    }
+
+    /// Hides everything opaque while the glass is up.
+    ///
+    /// Split out of the layout pass because it has to run at other moments too: the artwork
+    /// view is created lazily and is born visible, and returning from the gallery hands the
+    /// bubble a rebuilt backdrop. Both happen without a layout, and until the next one the
+    /// solid fill sits on top of the glass — which is exactly how the effect used to vanish
+    /// after opening a photo.
+    func applyNetegramGlassVisibility() {
+        guard self.glassView != nil else {
+            return
+        }
+        self.imageView?.isHidden = true
+        self.outlineImageNode.isHidden = true
+        self.backdropNode?.isHidden = true
     }
 
     /// Puts a glass layer under the bubble and hides everything opaque above it, so what shows
@@ -183,9 +202,7 @@ public class ChatMessageBackground: ASDisplayNode {
             self.glassView = glassView
         }
 
-        self.imageView?.isHidden = true
-        self.outlineImageNode.isHidden = true
-        self.backdropNode?.isHidden = true
+        self.applyNetegramGlassVisibility()
 
         // Read from the trait collection rather than the theme: this node is handed graphics,
         // not a PresentationTheme, and the glass only needs to know which way to lean.
@@ -418,8 +435,13 @@ public class ChatMessageBackground: ASDisplayNode {
         if let imageView = self.imageView {
             imageView.image = image
         }
-        
+
         self.outlineImageNode.image = outlineImage
+
+        // New artwork has just been handed in, and the bubble may have been given a rebuilt
+        // backdrop along with it — both arrive without a layout pass, so the glass has to be
+        // re-asserted here or the fresh fill covers it.
+        self.applyNetegramGlassVisibility()
     }
 
     public func animateFrom(sourceView: UIView, transition: CombinedTransition) {

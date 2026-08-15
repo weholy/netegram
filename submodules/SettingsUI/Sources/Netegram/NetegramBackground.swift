@@ -71,11 +71,13 @@ public final class NetegramBackgroundSettings {
 
     public func setMode(_ mode: NetegramBackgroundMode) {
         UserDefaults.standard.set(Int(mode.rawValue), forKey: backgroundModeKey)
+        UserDefaults.standard.synchronize()
         self.promise.set(NetegramBackgroundSettings.current())
     }
 
     public func setPath(_ path: String) {
         UserDefaults.standard.set(path, forKey: backgroundPathKey)
+        UserDefaults.standard.synchronize()
         self.promise.set(NetegramBackgroundSettings.current())
     }
 }

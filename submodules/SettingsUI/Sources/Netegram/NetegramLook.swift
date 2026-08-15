@@ -77,6 +77,7 @@ public func netegramSetNavTabHidden(_ tab: NetegramNavTab, hidden: Bool) {
         values.removeAll(where: { $0 == tab.rawValue })
     }
     UserDefaults.standard.set(values, forKey: netegramHiddenNavTabsKey)
+    UserDefaults.standard.synchronize()
 }
 
 /// Profile action buttons that can be hidden. Raw values are stored, so they must stay put.
@@ -132,6 +133,7 @@ public func netegramSetProfileButtonHidden(_ button: NetegramProfileButton, hidd
         values.removeAll(where: { $0 == button.rawValue })
     }
     UserDefaults.standard.set(values, forKey: netegramHiddenProfileButtonsKey)
+    UserDefaults.standard.synchronize()
 }
 
 public struct NetegramLookSettings: Equatable {
@@ -177,11 +179,13 @@ public final class NetegramLookPreferences {
     /// the store.
     public func setNavBarWidth(_ percent: Int) {
         UserDefaults.standard.set(max(50, min(150, percent)), forKey: netegramNavBarWidthKey)
+        UserDefaults.standard.synchronize()
         self.promise.set(NetegramLookPreferences.current())
     }
 
     public func setNavBarHeight(_ percent: Int) {
         UserDefaults.standard.set(max(50, min(150, percent)), forKey: netegramNavBarHeightKey)
+        UserDefaults.standard.synchronize()
         self.promise.set(NetegramLookPreferences.current())
     }
 
@@ -192,6 +196,7 @@ public final class NetegramLookPreferences {
 
     public func setRoundProfileButtons(_ value: Bool) {
         UserDefaults.standard.set(value, forKey: netegramRoundProfileButtonsKey)
+        UserDefaults.standard.synchronize()
         self.promise.set(NetegramLookPreferences.current())
     }
 
@@ -206,6 +211,7 @@ public final class NetegramLookPreferences {
 
     public func setContextRedesign(_ value: Bool) {
         UserDefaults.standard.set(value, forKey: netegramContextRedesignKey)
+        UserDefaults.standard.synchronize()
         self.promise.set(NetegramLookPreferences.current())
     }
 }

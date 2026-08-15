@@ -418,6 +418,18 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         // outlives every controller swap below.
         NetegramStatusBadgeView.install(in: window)
 
+        // Netegram: force settings to disk whenever the app steps back.
+        //
+        // UserDefaults keeps recent writes in memory and flushes them on its own schedule. An
+        // app that iOS terminates while suspended never gets to flush, and the settings come
+        // back as they were hours ago — which is exactly the "resets itself" complaint. Each
+        // Netegram write already flushes; this catches whatever else was still pending.
+        for name in [UIApplication.willResignActiveNotification, UIApplication.didEnterBackgroundNotification] {
+            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main, using: { _ in
+                UserDefaults.standard.synchronize()
+            })
+        }
+
         // Netegram: photo or video behind every screen. Installed before the root controller
         // fills the container, and the container's own fill is dropped so it shows through —
         // the page colours are cleared in PresentationTheme for the same reason.

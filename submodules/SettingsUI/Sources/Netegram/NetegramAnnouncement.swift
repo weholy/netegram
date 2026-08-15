@@ -81,26 +81,31 @@ public final class NetegramAnnouncementSettings {
 
     public func setEnabled(_ value: Bool) {
         UserDefaults.standard.set(value, forKey: announcementEnabledKey)
+        UserDefaults.standard.synchronize()
         self.push()
     }
 
     public func setChannel(_ value: String) {
         UserDefaults.standard.set(value, forKey: announcementChannelKey)
+        UserDefaults.standard.synchronize()
         self.push()
     }
 
     public func setTitle(_ value: String) {
         UserDefaults.standard.set(value, forKey: announcementTitleKey)
+        UserDefaults.standard.synchronize()
         self.push()
     }
 
     public func setText(_ value: String) {
         UserDefaults.standard.set(value, forKey: announcementTextKey)
+        UserDefaults.standard.synchronize()
         self.push()
     }
 
     public func setLink(_ value: String) {
         UserDefaults.standard.set(value, forKey: announcementLinkKey)
+        UserDefaults.standard.synchronize()
         self.push()
     }
 

@@ -42,6 +42,7 @@ public enum NetegramEditHistory {
             return
         }
         UserDefaults.standard.set(data, forKey: editHistoryKey)
+        UserDefaults.standard.synchronize()
     }
 
     /// Records the text a message had before the edit that is about to be applied.

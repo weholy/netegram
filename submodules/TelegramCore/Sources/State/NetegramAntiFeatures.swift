@@ -101,6 +101,7 @@ public enum NetegramDeletedMessages {
         }
         NetegramDeletedMessages.cache = stored
         UserDefaults.standard.set(Array(stored), forKey: NetegramDeletedMessages.storageKey)
+        UserDefaults.standard.synchronize()
         NetegramDeletedMessages.lock.unlock()
     }
 
@@ -200,6 +201,7 @@ public enum NetegramLocalBio {
     private static func store(_ value: [String: String]) {
         NetegramLocalBio.cache = value
         UserDefaults.standard.set(value, forKey: NetegramLocalBio.storageKey)
+        UserDefaults.standard.synchronize()
     }
 
     public static func set(peerId: PeerId, text: String) {

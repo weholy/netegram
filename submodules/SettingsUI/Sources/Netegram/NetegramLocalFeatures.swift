@@ -89,6 +89,7 @@ public final class NetegramLocalFeatures {
 
     public func setUsernameEnabled(_ value: Bool, ownPeerId: EnginePeer.Id) {
         UserDefaults.standard.set(value, forKey: localUsernameEnabledKey)
+        UserDefaults.standard.synchronize()
         if !value {
             netegramSetLocalUsername(nil, for: ownPeerId)
         }
@@ -122,16 +123,19 @@ public final class NetegramLocalFeatures {
     public func setPremium(_ value: Bool, ownPeerId: Int64) {
         UserDefaults.standard.set(value, forKey: localPremiumKey)
         UserDefaults.standard.set(NSNumber(value: ownPeerId), forKey: localPremiumPeerIdKey)
+        UserDefaults.standard.synchronize()
         self.push()
     }
 
     public func setStarsEnabled(_ value: Bool) {
         UserDefaults.standard.set(value, forKey: localStarsEnabledKey)
+        UserDefaults.standard.synchronize()
         self.push()
     }
 
     public func setStarsAmount(_ value: Int) {
         UserDefaults.standard.set(max(0, min(netegramMaxLocalStars, value)), forKey: localStarsAmountKey)
+        UserDefaults.standard.synchronize()
         self.push()
     }
 

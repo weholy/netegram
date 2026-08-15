@@ -196,12 +196,14 @@ public final class NetegramGhostPreferences {
 
     public func setDelayedSendSeconds(_ value: Int32) {
         UserDefaults.standard.set(Int(value), forKey: NetegramGhostKeys.delayedSendSeconds)
+        UserDefaults.standard.synchronize()
         self.promise.set(NetegramGhostPreferences.current())
     }
 
     public func setDeviceName(_ value: String) {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         UserDefaults.standard.set(trimmed, forKey: NetegramGhostKeys.deviceName)
+        UserDefaults.standard.synchronize()
         self.promise.set(NetegramGhostPreferences.current())
     }
 
