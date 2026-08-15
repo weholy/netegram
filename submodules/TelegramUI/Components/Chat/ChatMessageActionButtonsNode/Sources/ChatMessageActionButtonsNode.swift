@@ -420,7 +420,7 @@ private final class ChatMessageActionButtonNode: ASDisplayNode {
                             cornerRadius: bubbleCorners.auxiliaryRadius,
                             isDark: theme.theme.overallDarkAppearance,
                             tintColor: .init(kind: .clear),
-                            transition: ComponentTransition(animation)
+                            transition: ComponentTransition(animation.transition)
                         )
                     } else {
                         if let glassView = node.netegramGlassView {
