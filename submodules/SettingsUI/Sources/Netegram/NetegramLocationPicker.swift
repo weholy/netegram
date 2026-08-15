@@ -36,11 +36,20 @@ final class NetegramLocationPickerController: UIViewController {
 
         self.mapView.frame = self.view.bounds
         self.mapView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        // Explicit rather than relying on MKMapView's defaults: this screen has one job, and
+        // a drag that silently does nothing is the single worst way for it to fail.
+        self.mapView.isUserInteractionEnabled = true
+        self.mapView.isScrollEnabled = true
+        self.mapView.isZoomEnabled = true
+        self.mapView.isPitchEnabled = false
+        self.mapView.isRotateEnabled = false
         self.view.addSubview(self.mapView)
 
-        if let initial = self.initial {
-            self.mapView.setRegion(MKCoordinateRegion(center: initial, latitudinalMeters: 2000.0, longitudinalMeters: 2000.0), animated: false)
-        }
+        // A coordinate is set even with nothing saved yet: MapKit's own unset region is a
+        // near-global view, where a drag shifts the map by a fraction of a pixel and looks
+        // exactly like the map not responding at all.
+        let startingCoordinate = self.initial ?? CLLocationCoordinate2D(latitude: 55.7558, longitude: 37.6173)
+        self.mapView.setRegion(MKCoordinateRegion(center: startingCoordinate, latitudinalMeters: 2000.0, longitudinalMeters: 2000.0), animated: false)
 
         self.pinView.image = UIImage(systemName: "mappin.and.ellipse")
         self.pinView.tintColor = .systemRed
