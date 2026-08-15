@@ -71,6 +71,10 @@ public final class NetegramAppBackgroundView: UIView {
             view.setUpImage(url: url)
         }
         containerView.insertSubview(view, at: 0)
+        // Inserting at the bottom is not enough: the window puts the root controller's view in
+        // at index zero later, which pushes this one above it and lands the background on top
+        // of the whole interface. A negative depth keeps it behind whatever the order becomes.
+        view.layer.zPosition = -1000.0
         return true
     }
 

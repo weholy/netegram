@@ -409,6 +409,27 @@ public enum DeviceMetrics: CaseIterable, Equatable {
         }
     }
     
+    /// Netegram: how far below its usual place the in-app badge has to sit.
+    ///
+    /// The badge is positioned at a fixed y that predates the Dynamic Island, so on island
+    /// devices it lands above the island instead of on it. The offset is a per-model table
+    /// rather than a formula because the island's position is not derivable from anything the
+    /// system exposes — Swiftgram arrived at the same conclusion and the same shape of fix.
+    ///
+    /// Values are chosen for the Netegram badge, which is island-sized; a badge of a different
+    /// height would need different numbers.
+    public var netegramAppBadgeOffset: CGFloat {
+        switch self {
+        case .iPhone14Pro, .iPhone14ProZoomed, .iPhone14ProMax, .iPhone14ProMaxZoomed:
+            return 6.0
+        case .iPhone16Pro, .iPhone16ProMax, .iPhoneAir:
+            return 9.0
+        default:
+            // Devices with a plain notch: the badge keeps the place it has always had.
+            return 0.0
+        }
+    }
+
     public var showAppBadge: Bool {
         if case .iPhoneX = self {
             return false

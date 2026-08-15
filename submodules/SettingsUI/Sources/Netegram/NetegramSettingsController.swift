@@ -19,9 +19,10 @@ private final class NetegramSettingsControllerArguments {
     let openGhost: () -> Void
     let openLocalFeatures: () -> Void
     let openBackground: () -> Void
+    let openTransfer: () -> Void
     let openAnnouncement: () -> Void
 
-    init(openSearch: @escaping () -> Void, openLook: @escaping () -> Void, openHideButtons: @escaping () -> Void, openNavBar: @escaping () -> Void, openAppearance: @escaping () -> Void, openLiquidGlass: @escaping () -> Void, openGhost: @escaping () -> Void, openLocalFeatures: @escaping () -> Void, openBackground: @escaping () -> Void, openAnnouncement: @escaping () -> Void) {
+    init(openSearch: @escaping () -> Void, openLook: @escaping () -> Void, openHideButtons: @escaping () -> Void, openNavBar: @escaping () -> Void, openAppearance: @escaping () -> Void, openLiquidGlass: @escaping () -> Void, openGhost: @escaping () -> Void, openLocalFeatures: @escaping () -> Void, openBackground: @escaping () -> Void, openTransfer: @escaping () -> Void, openAnnouncement: @escaping () -> Void) {
         self.openSearch = openSearch
         self.openLook = openLook
         self.openHideButtons = openHideButtons
@@ -31,6 +32,7 @@ private final class NetegramSettingsControllerArguments {
         self.openGhost = openGhost
         self.openLocalFeatures = openLocalFeatures
         self.openBackground = openBackground
+        self.openTransfer = openTransfer
         self.openAnnouncement = openAnnouncement
     }
 }
@@ -88,6 +90,7 @@ private enum NetegramRowColor {
     static let navBar = UIColor(rgb: 0x30B0C7)
     static let localFeatures = UIColor(rgb: 0xFFCC00)
     static let background = UIColor(rgb: 0x34C759)
+    static let transfer = UIColor(rgb: 0xAF52DE)
     static let announcement = UIColor(rgb: 0xFF3B30)
 }
 
@@ -105,6 +108,7 @@ private enum NetegramSettingsSection: Int32 {
     case ghost
     case localFeatures
     case background
+    case transfer
     case announcement
 }
 
@@ -119,6 +123,7 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
     case ghost
     case localFeatures
     case background
+    case transfer
     case announcement
     case appearanceFooter
 
@@ -144,6 +149,8 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
             return NetegramSettingsSection.localFeatures.rawValue
         case .background:
             return NetegramSettingsSection.background.rawValue
+        case .transfer:
+            return NetegramSettingsSection.transfer.rawValue
         case .announcement:
             return NetegramSettingsSection.announcement.rawValue
         }
@@ -171,10 +178,12 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
             return 7
         case .background:
             return 8
-        case .announcement:
+        case .transfer:
             return 9
+        case .announcement:
+            return 10
         case .appearanceFooter:
-            return 11
+            return 12
         }
     }
 
@@ -225,6 +234,10 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
             return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, icon: netegramRowIcon("photo", NetegramRowColor.background), title: NetegramBackgroundStrings.title, label: "", additionalDetailLabel: "Видео или фото позади экранов", sectionId: self.section, style: .blocks, action: {
                 arguments.openBackground()
             })
+        case .transfer:
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, icon: netegramRowIcon("arrow.up.arrow.down", NetegramRowColor.transfer), title: NetegramTransferStrings.title, label: "", additionalDetailLabel: NetegramTransferStrings.subtitle, sectionId: self.section, style: .blocks, action: {
+                arguments.openTransfer()
+            })
         case .announcement:
             return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, icon: netegramRowIcon("megaphone", NetegramRowColor.announcement), title: NetegramAnnouncementStrings.title, label: "", additionalDetailLabel: "Плашка в списке чатов", sectionId: self.section, style: .blocks, action: {
                 arguments.openAnnouncement()
@@ -245,7 +258,7 @@ private func netegramSettingsEntries(isOwner: Bool) -> [NetegramSettingsEntry] {
     guard isOwner else {
         return netegramPublicEntries
     }
-    return [.logoHeader(true), .search, .look, .appearance, .ghost, .liquidGlass, .hideButtons, .navBar, .localFeatures, .background, .announcement]
+    return [.logoHeader(true), .search, .look, .appearance, .ghost, .liquidGlass, .hideButtons, .navBar, .localFeatures, .background, .transfer, .announcement]
 }
 
 /// Netegram: the account this build belongs to.
@@ -295,6 +308,8 @@ public func netegramSettingsController(context: AccountContext) -> ViewControlle
         pushControllerImpl?(netegramLocalFeaturesController(context: context))
     }, openBackground: {
         pushControllerImpl?(netegramBackgroundController(context: context))
+    }, openTransfer: {
+        pushControllerImpl?(netegramTransferController(context: context))
     }, openAnnouncement: {
         pushControllerImpl?(netegramAnnouncementController(context: context))
     })

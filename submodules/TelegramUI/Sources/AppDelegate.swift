@@ -414,10 +414,6 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         self.window = window
         self.nativeWindow = window
 
-        // Netegram: branded pill over the Dynamic Island. Added straight to the window so it
-        // outlives every controller swap below.
-        NetegramStatusBadgeView.install(in: window)
-
         // Netegram: force settings to disk whenever the app steps back.
         //
         // UserDefaults keeps recent writes in memory and flushes them on its own schedule. An
