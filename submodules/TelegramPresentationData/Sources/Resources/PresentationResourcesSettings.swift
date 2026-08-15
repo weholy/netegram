@@ -6,11 +6,6 @@ import AppBundle
 private let gradientImage = UIImage(bundleImageName: "Item List/Icons/Gradient")
 private let backdropImage = UIImage(bundleImageName: "Item List/Icons/Backdrop")
 
-/// Read directly from UserDefaults rather than through SettingsUI: that module already
-/// depends on this one, so importing it here would be circular. The key is mirrored in
-/// NetegramSettings.
-private let netegramCustomSettingsIconsKey = "netegram.customSettingsIcons"
-
 private final class NetegramSettingsIconCache {
     static let shared = NetegramSettingsIconCache()
 
@@ -29,31 +24,13 @@ private final class NetegramSettingsIconCache {
         self.images[key] = generated
         return generated
     }
-
-    func clear() {
-        self.lock.lock()
-        defer { self.lock.unlock() }
-        self.images.removeAll()
-    }
 }
 
-/// Drops memoised settings icons so a change to the custom-icons toggle takes effect.
-public func netegramInvalidateSettingsIconCache() {
-    NetegramSettingsIconCache.shared.clear()
-}
-
-/// Returns the bundled Netegram artwork when custom icons are enabled, otherwise the icon
-/// rendered from the monochrome template. Falls back to the rendered one if the custom
-/// asset is missing.
+/// The custom-artwork option this used to switch on is gone; every row now always renders
+/// from the monochrome template. `custom` is kept as the cache key's identity rather than
+/// dropped, so this did not need touching at each of its call sites.
 private func netegramSettingsIcon(custom: String, name: String, backgroundColors: [UIColor]) -> UIImage? {
-    if UserDefaults.standard.bool(forKey: netegramCustomSettingsIconsKey) {
-        if let image = NetegramSettingsIconCache.shared.image(key: "custom:\(custom)", generate: {
-            return UIImage(bundleImageName: "Netegram Icons/\(custom)")
-        }) {
-            return image
-        }
-    }
-    return NetegramSettingsIconCache.shared.image(key: "default:\(custom)", generate: {
+    return NetegramSettingsIconCache.shared.image(key: custom, generate: {
         return renderSettingsIcon(name: name, backgroundColors: backgroundColors)
     })
 }
