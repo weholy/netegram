@@ -12,6 +12,7 @@ import TextLoadingEffect
 import ComponentFlow
 import ComponentDisplayAdapters
 import EmojiStatusComponent
+import GlassBackgroundComponent
 
 private let titleFont = Font.medium(16.0)
 
@@ -65,8 +66,39 @@ private extension UIBezierPath {
     }
 }
 
+/// Netegram: true while "Liquid Glass on bot buttons" is on.
+///
+/// Cached because it is read while laying out every inline button under every bot message.
+/// The key is mirrored in NetegramSettings — this module cannot import SettingsUI, which sits
+/// above it in the dependency graph.
+private final class NetegramInlineButtonGlassState {
+    static let shared = NetegramInlineButtonGlassState()
+
+    private(set) var enabled: Bool = false
+
+    private init() {
+        self.reload()
+        NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification,
+            object: nil,
+            queue: .main,
+            using: { [weak self] _ in
+                self?.reload()
+            }
+        )
+    }
+
+    private func reload() {
+        self.enabled = UserDefaults.standard.bool(forKey: "netegram.liquidGlass.inlineButtons")
+    }
+}
+
 private final class ChatMessageActionButtonNode: ASDisplayNode {
     private var backgroundBlurView: PortalView?
+    /// Netegram: replaces the portal blur when the toggle is on. A real UIGlassEffect layer
+    /// rather than a tint on the existing blur, so it refracts the wallpaper behind the button
+    /// the same way message bubbles do under their own glass toggle.
+    private var netegramGlassView: GlassBackgroundView?
     
     private var titleNode: TextNode?
     private var iconNode: ASImageNode?
@@ -130,18 +162,26 @@ private final class ChatMessageActionButtonNode: ASDisplayNode {
                         backgroundBlurView.view.layer.removeAnimation(forKey: "opacity")
                         backgroundBlurView.view.alpha = 0.55
                     }
-                    
+                    if let netegramGlassView = strongSelf.netegramGlassView {
+                        netegramGlassView.layer.removeAnimation(forKey: "opacity")
+                        netegramGlassView.alpha = 0.55
+                    }
+
                     strongSelf.backgroundContent?.layer.removeAnimation(forKey: "opacity")
                     strongSelf.backgroundContent?.alpha = 0.55
                 } else {
                     //strongSelf.backgroundBlurNode.alpha = 1.0
                     //strongSelf.backgroundBlurNode.layer.animateAlpha(from: 0.55, to: 1.0, duration: 0.2)
-                    
+
                     if let backgroundBlurView = strongSelf.backgroundBlurView {
                         backgroundBlurView.view.alpha = 1.0
                         backgroundBlurView.view.layer.animateAlpha(from: 0.55, to: 1.0, duration: 0.2)
                     }
-                    
+                    if let netegramGlassView = strongSelf.netegramGlassView {
+                        netegramGlassView.alpha = 1.0
+                        netegramGlassView.layer.animateAlpha(from: 0.55, to: 1.0, duration: 0.2)
+                    }
+
                     strongSelf.backgroundContent?.alpha = 1.0
                     strongSelf.backgroundContent?.layer.animateAlpha(from: 0.55, to: 1.0, duration: 0.2)
                 }
@@ -358,14 +398,44 @@ private final class ChatMessageActionButtonNode: ASDisplayNode {
                         node.longTapRecognizer?.isEnabled = false
                     }
                     
-                    if node.backgroundBlurView == nil {
-                        if let backgroundBlurView = backgroundNode?.makeFreeBackground() {
-                            node.backgroundBlurView = backgroundBlurView
-                            node.view.insertSubview(backgroundBlurView.view, at: 0)
+                    let buttonSize = CGSize(width: max(0.0, width), height: 42.0)
+                    if NetegramInlineButtonGlassState.shared.enabled {
+                        // The portal blur is not wanted at all while glass is on — showing
+                        // both would put one translucent layer behind another.
+                        node.backgroundBlurView?.view.removeFromSuperview()
+                        node.backgroundBlurView = nil
+
+                        let glassView: GlassBackgroundView
+                        if let current = node.netegramGlassView {
+                            glassView = current
+                        } else {
+                            glassView = GlassBackgroundView(frame: CGRect())
+                            glassView.isUserInteractionEnabled = false
+                            node.view.insertSubview(glassView, at: 0)
+                            node.netegramGlassView = glassView
                         }
-                    }
-                    if let backgroundBlurView = node.backgroundBlurView {
-                        animation.animator.updateFrame(layer: backgroundBlurView.view.layer, frame: CGRect(origin: CGPoint(), size: CGSize(width: max(0.0, width), height: 42.0)), completion: nil)
+                        glassView.frame = CGRect(origin: CGPoint(), size: buttonSize)
+                        glassView.update(
+                            size: buttonSize,
+                            cornerRadius: bubbleCorners.auxiliaryRadius,
+                            isDark: theme.theme.overallDarkAppearance,
+                            tintColor: .init(kind: .clear),
+                            transition: ComponentTransition(animation)
+                        )
+                    } else {
+                        if let glassView = node.netegramGlassView {
+                            glassView.removeFromSuperview()
+                            node.netegramGlassView = nil
+                        }
+                        if node.backgroundBlurView == nil {
+                            if let backgroundBlurView = backgroundNode?.makeFreeBackground() {
+                                node.backgroundBlurView = backgroundBlurView
+                                node.view.insertSubview(backgroundBlurView.view, at: 0)
+                            }
+                        }
+                        if let backgroundBlurView = node.backgroundBlurView {
+                            animation.animator.updateFrame(layer: backgroundBlurView.view.layer, frame: CGRect(origin: CGPoint(), size: buttonSize), completion: nil)
+                        }
                     }
                     
                     if backgroundNode?.hasExtraBubbleBackground() == true {
@@ -395,10 +465,14 @@ private final class ChatMessageActionButtonNode: ASDisplayNode {
                     if let backgroundContent = node.backgroundContent {
                         //node.backgroundBlurNode.isHidden = true
                         node.backgroundBlurView?.view.isHidden = true
+                        // Netegram: the pattern-sampled background takes priority over glass
+                        // the same way it takes priority over the ordinary blur — two
+                        // translucent layers stacked would double up, not add clarity.
+                        node.netegramGlassView?.isHidden = true
                         animation.animator.updateFrame(layer: backgroundContent.layer, frame: CGRect(origin: CGPoint(), size: CGSize(width: max(0.0, width), height: 42.0)), completion: nil)
-                        
+
                         node.backgroundColorNode?.frame = backgroundContent.bounds
-                        
+
                         if let (rect, containerSize) = node.absolutePosition {
                             var backgroundFrame = backgroundContent.frame
                             backgroundFrame.origin.x += rect.minX
@@ -407,6 +481,7 @@ private final class ChatMessageActionButtonNode: ASDisplayNode {
                         }
                     } else {
                         node.backgroundBlurView?.view.isHidden = false
+                        node.netegramGlassView?.isHidden = false
                     }
                     
                     let rect = CGRect(origin: CGPoint(), size: CGSize(width: max(0.0, width), height: 42.0))
@@ -595,6 +670,7 @@ private final class ChatMessageActionButtonNode: ASDisplayNode {
                             if let backgroundBlurView = node.backgroundBlurView {
                                 backgroundBlurView.view.alpha = isEnabled ? 1.0 : 0.55
                             }
+                            node.netegramGlassView?.alpha = isEnabled ? 1.0 : 0.55
                             node.backgroundContent?.alpha = isEnabled ? 1.0 : 0.55
                         }
                     }

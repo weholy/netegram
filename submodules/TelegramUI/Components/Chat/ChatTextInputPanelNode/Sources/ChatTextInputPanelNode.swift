@@ -1652,9 +1652,18 @@ public class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDeleg
         let previousAdditionalSideInsets = self.validLayout?.4
         self.validLayout = (width, leftInset, rightInset, bottomInset, additionalSideInsets, maxHeight, maxOverlayHeight, metrics, isSecondary, isMediaInputExpanded, deviceMetrics)
         
+        // Netegram: true while "Liquid Glass on the input panel" is on. Cached because this
+        // runs on every layout pass. The key is mirrored in NetegramSettings — this module
+        // cannot import SettingsUI, which sits above it.
+        let netegramInputPanelGlass = UserDefaults.standard.bool(forKey: "netegram.liquidGlass.inputPanel")
+
         let defaultGlassTintColor: GlassBackgroundView.TintColor
         let defaultGlassTintWithInnerColor: GlassBackgroundView.TintColor
+        var netegramWantsClearGlass = netegramInputPanelGlass
         if case .clear = interfaceState.preferredGlassType {
+            netegramWantsClearGlass = true
+        }
+        if netegramWantsClearGlass {
             defaultGlassTintColor = .init(kind: .clear)
             defaultGlassTintWithInnerColor = .init(kind: .clear, innerColor: interfaceState.theme.list.itemCheckColors.fillColor)
         } else {
