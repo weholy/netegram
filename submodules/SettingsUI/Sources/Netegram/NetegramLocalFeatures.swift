@@ -337,6 +337,9 @@ public func netegramLocalFeaturesController(context: AccountContext) -> ViewCont
     pushControllerImpl = { [weak controller] c in
         controller?.push(c)
     }
+    presentRestartImpl = { [weak controller] in
+        netegramPresentRestartToast(context: context, controller: controller, text: NetegramRestartStrings.badge)
+    }
     return controller
 }
 
