@@ -15,6 +15,11 @@ static const int32_t MTGhostScreenshotNotification = -1589618665;  // messages.s
 static const int32_t MTGhostGetSponsoredMessages = -1680673735;    // messages.getSponsoredMessages
 static const int32_t MTGhostReadReactions = -1420459918;           // messages.readReactions
 static const int32_t MTGhostReadDiscussion = -147740172;           // messages.readDiscussion
+static const int32_t MTGhostReadMentions = 921026381;              // messages.readMentions
+// Secret chats carry typing over their own encrypted envelope — a call entirely separate from
+// messages.setTyping above. Missing this meant the "typing" toggle silently did nothing in
+// secret chats, which is exactly backwards for a chat kind chosen for privacy.
+static const int32_t MTGhostSetEncryptedTyping = 2031374829;       // messages.setEncryptedTyping
 
 // Outgoing calls that count as "I did something in this chat", for read-on-action. All of
 // them are flags:# followed by peer:InputPeer, which is what makes one shared parser enough.
@@ -78,6 +83,21 @@ static NSData *MTGhostAffectedMessages(void) {
     [data appendBytes:header length:sizeof(header)];
     [data appendBytes:&pts length:sizeof(pts)];
     [data appendBytes:&ptsCount length:sizeof(ptsCount)];
+    return data;
+}
+
+/// messages.affectedHistory#b45c69d1 with pts=0, pts_count=0, offset=0 — readMentions answers
+/// with this shape rather than affectedMessages's, one field longer.
+static NSData *MTGhostAffectedHistory(void) {
+    const uint8_t header[] = {0xD1, 0x69, 0x5C, 0xB4};
+    int32_t pts = 0;
+    int32_t ptsCount = 0;
+    int32_t offset = 0;
+    NSMutableData *data = [NSMutableData data];
+    [data appendBytes:header length:sizeof(header)];
+    [data appendBytes:&pts length:sizeof(pts)];
+    [data appendBytes:&ptsCount length:sizeof(ptsCount)];
+    [data appendBytes:&offset length:sizeof(offset)];
     return data;
 }
 
@@ -351,6 +371,11 @@ static NSInteger MTGhostSendGeneration = 0;
     if (functionId == MTGhostMessagesSetTyping) {
         return MTGhostShouldBlockSetTyping(payload) ? MTGhostBoolTrue() : nil;
     }
+    if (functionId == MTGhostSetEncryptedTyping) {
+        // Secret chats only ever send the plain typing signal — there is no per-action
+        // breakdown to parse here, unlike the ordinary setTyping call above.
+        return MTGhostFlag(@"netegram.ghost.typing") ? MTGhostBoolTrue() : nil;
+    }
     if (functionId == MTGhostSendMessage || functionId == MTGhostSendMedia ||
         functionId == MTGhostSendMultiMedia || functionId == MTGhostSendReaction) {
         // Never blocked — only remembered, so a later read in the same chat can be let through.
@@ -370,6 +395,12 @@ static NSInteger MTGhostSendGeneration = 0;
     }
     if (functionId == MTGhostChannelsReadHistory || functionId == MTGhostReadDiscussion) {
         return MTGhostFlag(@"netegram.ghost.readReceipts") ? MTGhostBoolTrue() : nil;
+    }
+    if (functionId == MTGhostReadMentions) {
+        // A separate call from readHistory: opening a chat can clear the @-mention badge
+        // without the rest of the history being marked read, or the other way round, so this
+        // needs its own switch rather than riding on the general read-receipts one.
+        return MTGhostFlag(@"netegram.ghost.readMentions") ? MTGhostAffectedHistory() : nil;
     }
     if (functionId == MTGhostReadReactions) {
         return MTGhostFlag(@"netegram.ghost.readReceipts") ? MTGhostAffectedMessages() : nil;

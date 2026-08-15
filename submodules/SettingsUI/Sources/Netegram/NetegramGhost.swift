@@ -30,6 +30,7 @@ public enum NetegramGhostKeys {
     public static let emojiInteraction = "netegram.ghost.emojiInteraction"
     public static let emojiSeen = "netegram.ghost.emojiSeen"
     public static let readReceipts = "netegram.ghost.readReceipts"
+    public static let readMentions = "netegram.ghost.readMentions"
     public static let readOnAction = "netegram.ghost.readOnAction"
     public static let storyViews = "netegram.ghost.storyViews"
     public static let viewOnce = "netegram.ghost.viewOnce"
@@ -108,6 +109,7 @@ public let netegramGhostRows: [NetegramGhostRow] = [
     NetegramGhostRow(key: NetegramGhostKeys.emojiInteraction, title: "Анимации эмодзи", footer: "Не отправляет анимацию, когда вы нажимаете на эмодзи."),
     NetegramGhostRow(key: NetegramGhostKeys.emojiSeen, title: "Просмотр анимаций", footer: "Скрывает, что вы посмотрели чужую анимацию эмодзи."),
     NetegramGhostRow(key: NetegramGhostKeys.readReceipts, title: "Прочтение сообщений", footer: "Галочки у собеседника остаются одинарными."),
+    NetegramGhostRow(key: NetegramGhostKeys.readMentions, title: "Прочтение упоминаний", footer: "Значок над @-упоминанием не гаснет для собеседника, пока вы его не прочитали по-настоящему."),
     NetegramGhostRow(key: NetegramGhostKeys.readOnAction, title: "Читать при действиях", footer: "Сообщения отмечаются прочитанными, только когда вы ответили или поставили реакцию. Работает вместе с предыдущим пунктом."),
     NetegramGhostRow(key: NetegramGhostKeys.storyViews, title: "Просмотр историй", footer: "Вас не будет в списке зрителей."),
     NetegramGhostRow(key: NetegramGhostKeys.viewOnce, title: "Одноразовые", footer: "Открывает одноразовые фото и голосовые, не сообщая отправителю."),
