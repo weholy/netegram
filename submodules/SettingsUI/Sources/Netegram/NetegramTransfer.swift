@@ -127,6 +127,13 @@ private final class NetegramSettingsFilePicker: NSObject, UIDocumentPickerDelega
             completion(nil)
             return
         }
+        // The project still targets iOS 13, where this initialiser does not exist yet. The
+        // older one is deprecated and would fail the module's warnings-as-errors, so the
+        // feature simply is not offered on 13 rather than being written twice.
+        guard #available(iOS 14.0, *) else {
+            completion(nil)
+            return
+        }
         let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.json], asCopy: true)
         let delegate = NetegramSettingsFilePicker(completion: completion)
         NetegramSettingsFilePicker.current = delegate
@@ -224,6 +231,10 @@ private enum NetegramTransferEntry: ItemListNodeEntry {
     }
 }
 
+private func netegramTransferEntries() -> [NetegramTransferEntry] {
+    return [.export, .exportFooter, .importSettings, .importFooter, .reset, .resetFooter]
+}
+
 public func netegramTransferController(context: AccountContext) -> ViewController {
     var presentToastImpl: ((String) -> Void)?
     var presentShareImpl: ((URL) -> Void)?
@@ -261,7 +272,7 @@ public func netegramTransferController(context: AccountContext) -> ViewControlle
         )
         let listState = ItemListNodeState(
             presentationData: ItemListPresentationData(presentationData),
-            entries: [.export, .exportFooter, .importSettings, .importFooter, .reset, .resetFooter],
+            entries: netegramTransferEntries(),
             style: .blocks,
             animateChanges: false
         )
