@@ -321,6 +321,7 @@ filegroup(
 
 alternate_icon_folders = [
     "BlueIcon",
+    "NetegramDarkIcon",
 ]
 
 composer_icon_folders = ["Telegram"]

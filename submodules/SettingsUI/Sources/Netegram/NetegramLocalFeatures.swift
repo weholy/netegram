@@ -22,7 +22,12 @@ public enum NetegramLocalStrings {
     public static let changeStarBalance = "Изменить баланс звёзд"
     public static let starsAmount = "Количество звёзд"
     public static let starsCustomValue = "Своё значение"
+    public static let badgeWhiteTitle = "Белая таблетка бейджа"
+    public static let badgeWhiteFooter = "Меняет цвет бейджа над вырезом экрана с чёрного на белый."
 }
+
+/// Read by WindowContent, which draws the badge and cannot import SettingsUI.
+public let netegramBadgeWhiteKey = "netegram.badge.white"
 
 private let localPremiumKey = "netegram.local.premium"
 /// Mirrored in TelegramCore's PeerUtils, which cannot import this module.
@@ -152,13 +157,15 @@ private final class NetegramLocalFeaturesArguments {
     let openStars: () -> Void
     let updateUsernameEnabled: (Bool) -> Void
     let updateUsername: (String) -> Void
+    let updateBadgeWhite: (Bool) -> Void
 
-    init(context: AccountContext, updatePremium: @escaping (Bool) -> Void, openStars: @escaping () -> Void, updateUsernameEnabled: @escaping (Bool) -> Void, updateUsername: @escaping (String) -> Void) {
+    init(context: AccountContext, updatePremium: @escaping (Bool) -> Void, openStars: @escaping () -> Void, updateUsernameEnabled: @escaping (Bool) -> Void, updateUsername: @escaping (String) -> Void, updateBadgeWhite: @escaping (Bool) -> Void) {
         self.context = context
         self.updatePremium = updatePremium
         self.openStars = openStars
         self.updateUsernameEnabled = updateUsernameEnabled
         self.updateUsername = updateUsername
+        self.updateBadgeWhite = updateBadgeWhite
     }
 }
 
@@ -167,6 +174,7 @@ private enum NetegramLocalFeaturesSection: Int32 {
     case stars
     case username
     case usernameInput
+    case badge
 }
 
 private enum NetegramLocalFeaturesEntry: ItemListNodeEntry {
@@ -176,6 +184,8 @@ private enum NetegramLocalFeaturesEntry: ItemListNodeEntry {
     case localUsername(Bool)
     case localUsernameInput(String)
     case localUsernameFooter
+    case badge(Bool)
+    case badgeFooter
 
     var section: ItemListSectionId {
         switch self {
@@ -188,6 +198,8 @@ private enum NetegramLocalFeaturesEntry: ItemListNodeEntry {
         // Its own section so the field appears as a separate block right under the toggle.
         case .localUsernameInput:
             return NetegramLocalFeaturesSection.usernameInput.rawValue
+        case .badge, .badgeFooter:
+            return NetegramLocalFeaturesSection.badge.rawValue
         }
     }
 
@@ -205,6 +217,10 @@ private enum NetegramLocalFeaturesEntry: ItemListNodeEntry {
             return 4
         case .localUsernameFooter:
             return 5
+        case .badge:
+            return 6
+        case .badgeFooter:
+            return 7
         }
     }
 
@@ -252,12 +268,19 @@ private enum NetegramLocalFeaturesEntry: ItemListNodeEntry {
             )
         case .localUsernameFooter:
             return ItemListTextItem(presentationData: presentationData, text: .plain(NetegramLocalStrings.localUsernameFooter), sectionId: self.section)
+        case let .badge(value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: NetegramLocalStrings.badgeWhiteTitle, value: value, sectionId: self.section, style: .blocks, updated: { value in
+                arguments.updateBadgeWhite(value)
+            })
+        case .badgeFooter:
+            return ItemListTextItem(presentationData: presentationData, text: .plain(NetegramLocalStrings.badgeWhiteFooter), sectionId: self.section)
         }
     }
 }
 
 public func netegramLocalFeaturesController(context: AccountContext) -> ViewController {
     var pushControllerImpl: ((ViewController) -> Void)?
+    var presentRestartImpl: (() -> Void)?
 
     let arguments = NetegramLocalFeaturesArguments(context: context, updatePremium: { value in
         NetegramLocalFeatures.shared.setPremium(value, ownPeerId: context.account.peerId.toInt64())
@@ -267,6 +290,10 @@ public func netegramLocalFeaturesController(context: AccountContext) -> ViewCont
         NetegramLocalFeatures.shared.setUsernameEnabled(value, ownPeerId: context.account.peerId)
     }, updateUsername: { value in
         NetegramLocalFeatures.shared.setUsername(value, ownPeerId: context.account.peerId)
+    }, updateBadgeWhite: { value in
+        UserDefaults.standard.set(value, forKey: netegramBadgeWhiteKey)
+        UserDefaults.standard.synchronize()
+        presentRestartImpl?()
     })
 
     let signal = combineLatest(queue: .mainQueue(),
@@ -286,6 +313,8 @@ public func netegramLocalFeaturesController(context: AccountContext) -> ViewCont
             entries.append(.localUsernameInput(settings.username))
         }
         entries.append(.localUsernameFooter)
+        entries.append(.badge(UserDefaults.standard.bool(forKey: netegramBadgeWhiteKey)))
+        entries.append(.badgeFooter)
 
         let controllerState = ItemListControllerState(
             presentationData: ItemListPresentationData(presentationData),

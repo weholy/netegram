@@ -1,4 +1,14 @@
 <dict>
+    <key>NetegramDark</key>
+    <dict>
+        <key>CFBundleIconFiles</key>
+        <array>
+            <string>NetegramDarkIcon</string>
+            <string>NetegramDarkNotificationIcon</string>
+        </array>
+        <key>UIPrerenderedIcon</key>
+        <true/>
+    </dict>
     <key>Black</key>
     <dict>
         <key>CFBundleIconFiles</key>

@@ -348,7 +348,11 @@ public class Window1 {
     public init(hostView: WindowHostView, statusBarHost: StatusBarHost?) {
         self.hostView = hostView
         self.badgeView = UIImageView()
-        self.badgeView.image = UIImage(bundleImageName: "Components/AppBadge")
+        // Netegram: two colourways, picked in Local Features. The key is mirrored there —
+        // this module cannot import SettingsUI, which sits above it. Read once at launch,
+        // like the rest of this fork's "restart to apply" toggles.
+        let netegramBadgeAsset = UserDefaults.standard.bool(forKey: "netegram.badge.white") ? "Components/AppBadgeWhite" : "Components/AppBadge"
+        self.badgeView.image = UIImage(bundleImageName: netegramBadgeAsset)
         self.badgeView.isHidden = true
         
         self.systemUserInterfaceStyle = hostView.systemUserInterfaceStyle

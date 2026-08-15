@@ -10,64 +10,48 @@ import PresentationDataUtils
 import AccountContext
 
 private final class NetegramSettingsControllerArguments {
-    let openLook: () -> Void
     let openHideButtons: () -> Void
     let openNavBar: () -> Void
     let openLiquidGlass: () -> Void
     let openGhost: () -> Void
     let openLocalFeatures: () -> Void
-    let openBackground: () -> Void
     let openTransfer: () -> Void
-    let openAnnouncement: () -> Void
 
-    init(openLook: @escaping () -> Void, openHideButtons: @escaping () -> Void, openNavBar: @escaping () -> Void, openLiquidGlass: @escaping () -> Void, openGhost: @escaping () -> Void, openLocalFeatures: @escaping () -> Void, openBackground: @escaping () -> Void, openTransfer: @escaping () -> Void, openAnnouncement: @escaping () -> Void) {
-        self.openLook = openLook
+    init(openHideButtons: @escaping () -> Void, openNavBar: @escaping () -> Void, openLiquidGlass: @escaping () -> Void, openGhost: @escaping () -> Void, openLocalFeatures: @escaping () -> Void, openTransfer: @escaping () -> Void) {
         self.openHideButtons = openHideButtons
         self.openNavBar = openNavBar
         self.openLiquidGlass = openLiquidGlass
         self.openGhost = openGhost
         self.openLocalFeatures = openLocalFeatures
-        self.openBackground = openBackground
         self.openTransfer = openTransfer
-        self.openAnnouncement = openAnnouncement
     }
 }
-
 
 // One section per row: rows sharing a section are drawn inside a single rounded block, so
 // each entry needs its own to stand apart.
 private enum NetegramSettingsSection: Int32 {
     case logoHeader
-    case header
-    case look
     case hideButtons
     case navBar
     case liquidGlass
     case ghost
     case localFeatures
-    case background
     case transfer
-    case announcement
 }
 
 private enum NetegramSettingsEntry: ItemListNodeEntry {
     case logoHeader(Bool)
-    case look
     case hideButtons
     case navBar
     case liquidGlass
     case ghost
     case localFeatures
-    case background
     case transfer
-    case announcement
 
     var section: ItemListSectionId {
         switch self {
         case .logoHeader:
             return NetegramSettingsSection.logoHeader.rawValue
-        case .look:
-            return NetegramSettingsSection.look.rawValue
         case .hideButtons:
             return NetegramSettingsSection.hideButtons.rawValue
         case .navBar:
@@ -78,12 +62,8 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
             return NetegramSettingsSection.ghost.rawValue
         case .localFeatures:
             return NetegramSettingsSection.localFeatures.rawValue
-        case .background:
-            return NetegramSettingsSection.background.rawValue
         case .transfer:
             return NetegramSettingsSection.transfer.rawValue
-        case .announcement:
-            return NetegramSettingsSection.announcement.rawValue
         }
     }
 
@@ -91,8 +71,6 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
         switch self {
         case .logoHeader:
             return -1
-        case .look:
-            return 1
         case .ghost:
             return 3
         case .liquidGlass:
@@ -103,12 +81,8 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
             return 6
         case .localFeatures:
             return 7
-        case .background:
-            return 8
         case .transfer:
             return 9
-        case .announcement:
-            return 10
         }
     }
 
@@ -121,10 +95,6 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
         switch self {
         case let .logoHeader(showsRevision):
             return NetegramHeaderItem(theme: presentationData.theme, showsRevision: showsRevision, sectionId: self.section)
-        case .look:
-            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramLookStrings.title, label: "", additionalDetailLabel: NetegramLookStrings.subtitle, sectionId: self.section, style: .blocks, action: {
-                arguments.openLook()
-            })
         case .hideButtons:
             return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramLookStrings.hideButtonsTitle, label: "", additionalDetailLabel: NetegramLookStrings.hideButtonsSubtitle, sectionId: self.section, style: .blocks, action: {
                 arguments.openHideButtons()
@@ -144,36 +114,27 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
                 arguments.openGhost()
             })
         case .localFeatures:
-            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramLocalStrings.localFeatures, label: "", additionalDetailLabel: "Премиум, звёзды, эмодзи", sectionId: self.section, style: .blocks, action: {
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramLocalStrings.localFeatures, label: "", additionalDetailLabel: "Премиум, звёзды, значки", sectionId: self.section, style: .blocks, action: {
                 arguments.openLocalFeatures()
-            })
-        case .background:
-            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramBackgroundStrings.title, label: "", additionalDetailLabel: "Видео или фото позади экранов", sectionId: self.section, style: .blocks, action: {
-                arguments.openBackground()
             })
         case .transfer:
             return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramTransferStrings.title, label: "", additionalDetailLabel: NetegramTransferStrings.subtitle, sectionId: self.section, style: .blocks, action: {
                 arguments.openTransfer()
             })
-        case .announcement:
-            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramAnnouncementStrings.title, label: "", additionalDetailLabel: "Плашка в списке чатов", sectionId: self.section, style: .blocks, action: {
-                arguments.openAnnouncement()
-            })
         }
     }
 }
 
-/// Rows offered to everyone. The rest of the screen is build-owner only — those features are
-/// either unfinished or specific to how this build is put together.
-/// What everyone but the owner sees. The header is left out: the logo and version belong to
-/// whoever builds this, and say nothing to anyone else.
+/// The full, and now only, list. "Владелец" used to unlock four more screens — Внешний вид,
+/// Фон приложения and Объявление — which are gone: their settings entry was the sole way to
+/// reach or change them, so removing it retires the feature rather than merely hiding it.
 private let netegramPublicEntries: [NetegramSettingsEntry] = [.ghost, .liquidGlass, .navBar]
 
 private func netegramSettingsEntries(isOwner: Bool) -> [NetegramSettingsEntry] {
     guard isOwner else {
         return netegramPublicEntries
     }
-    return [.logoHeader(true), .look, .ghost, .liquidGlass, .hideButtons, .navBar, .localFeatures, .background, .transfer, .announcement]
+    return [.logoHeader(true), .ghost, .liquidGlass, .hideButtons, .navBar, .localFeatures, .transfer]
 }
 
 /// Netegram: the account this build belongs to.
@@ -202,12 +163,26 @@ public func netegramIsBuildOwner(peer: EnginePeer?) -> Bool {
 private let netegramOwnerUsername = "detarlo"
 private let netegramOwnerPhone = "79809334541"
 
+/// Retires the three removed screens' settings, one time, so nobody who had already turned one
+/// on is left stuck with it permanently active and no menu path left to switch it back off.
+private func netegramRetireRemovedScreens() {
+    let defaults = UserDefaults.standard
+    guard !defaults.bool(forKey: "netegram.removedScreensRetired") else {
+        return
+    }
+    defaults.set(false, forKey: netegramContextRedesignKey)
+    defaults.set(false, forKey: netegramRoundProfileButtonsKey)
+    defaults.set(0, forKey: "netegram.background.mode")
+    defaults.set(true, forKey: "netegram.removedScreensRetired")
+    defaults.synchronize()
+}
+
 public func netegramSettingsController(context: AccountContext) -> ViewController {
+    netegramRetireRemovedScreens()
+
     var pushControllerImpl: ((ViewController) -> Void)?
 
-    let arguments = NetegramSettingsControllerArguments(openLook: {
-        pushControllerImpl?(netegramLookController(context: context))
-    }, openHideButtons: {
+    let arguments = NetegramSettingsControllerArguments(openHideButtons: {
         pushControllerImpl?(netegramHideProfileButtonsController(context: context))
     }, openNavBar: {
         pushControllerImpl?(netegramNavBarController(context: context))
@@ -217,12 +192,8 @@ public func netegramSettingsController(context: AccountContext) -> ViewControlle
         pushControllerImpl?(netegramGhostController(context: context))
     }, openLocalFeatures: {
         pushControllerImpl?(netegramLocalFeaturesController(context: context))
-    }, openBackground: {
-        pushControllerImpl?(netegramBackgroundController(context: context))
     }, openTransfer: {
         pushControllerImpl?(netegramTransferController(context: context))
-    }, openAnnouncement: {
-        pushControllerImpl?(netegramAnnouncementController(context: context))
     })
 
     let ownerSignal = context.engine.data.subscribe(

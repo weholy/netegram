@@ -1004,10 +1004,11 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         }, getAvailableAlternateIcons: {
             if #available(iOS 10.3, *) {
                 // The Netegram artwork is the bundle's primary icon, so it is the default and
-                // selecting it clears the alternate name. BlueIcon carries the original
-                // Telegram artwork and is the only alternate we ship.
+                // selecting it clears the alternate name. NetegramDark is the same mark on a
+                // black ground; BlueIcon carries the original Telegram artwork.
                 return [
                     PresentationAppIcon(name: "NetegramIcon", imageName: "NetegramIcon", isDefault: true),
+                    PresentationAppIcon(name: "NetegramDark", imageName: "NetegramDarkIcon"),
                     PresentationAppIcon(name: "Blue", imageName: "BlueIcon")
                 ]
             } else {
