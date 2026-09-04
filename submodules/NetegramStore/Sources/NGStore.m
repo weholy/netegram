@@ -278,13 +278,18 @@ static void NGStoreDarwinCallback(CFNotificationCenterRef center, void *observer
 
 /// Registered the first time anything touches the store, in every process that links it.
 static void NGStoreEnsureDarwinObserver(void) {
+    /// Held in a static rather than passed as an autoreleased temporary: the notification
+    /// centre keeps the name for the lifetime of the observer, and an object it does not own
+    /// outliving the pool is not something to rely on.
+    static NSString *observedName = nil;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
+        observedName = [NSString stringWithUTF8String:NGStoreDarwinNotificationName];
         CFNotificationCenterAddObserver(
             CFNotificationCenterGetDarwinNotifyCenter(),
             NULL,
             NGStoreDarwinCallback,
-            (__bridge CFStringRef)[NSString stringWithUTF8String:NGStoreDarwinNotificationName],
+            (__bridge CFStringRef)observedName,
             NULL,
             CFNotificationSuspensionBehaviorDeliverImmediately
         );
