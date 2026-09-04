@@ -205,6 +205,9 @@ public final class NetegramFakeActivityManager {
     private var activityDisposables: [PeerId: Disposable] = [:]
     private var currentKind: NetegramFakeActivityKind?
 
+    /// The furthest point each chat has already been read up to by this feature.
+    private var appliedReadIndices: [PeerId: MessageIndex] = [:]
+
     private init() {
     }
 
@@ -230,6 +233,7 @@ public final class NetegramFakeActivityManager {
 
         self.readDisposable?.dispose()
         self.readDisposable = nil
+        self.appliedReadIndices.removeAll()
     }
 
     private func apply(_ settings: NetegramFakeSettings) {
@@ -254,8 +258,10 @@ public final class NetegramFakeActivityManager {
 
         let wanted: Set<PeerId> = settings.activityEnabled ? Set(settings.activityPeers.map { PeerId($0) }) : Set()
 
-        for (peerId, disposable) in self.activityDisposables where !wanted.contains(peerId) {
-            disposable.dispose()
+        // Keys collected first: dropping entries while iterating the dictionary they came from
+        // works only by accident of value semantics, and reads as a bug either way.
+        for peerId in self.activityDisposables.keys.filter({ !wanted.contains($0) }) {
+            self.activityDisposables[peerId]?.dispose()
             self.activityDisposables.removeValue(forKey: peerId)
         }
 
@@ -280,18 +286,31 @@ public final class NetegramFakeActivityManager {
         }
 
         self.readDisposable = (context.engine.messages.chatList(group: .root, count: 200)
-        |> deliverOnMainQueue).start(next: { chatList in
+        |> deliverOnMainQueue).start(next: { [weak self] chatList in
+            guard let self else {
+                return
+            }
             for item in chatList.items {
-                guard peerIds.contains(item.renderedPeer.peerId) else {
+                let peerId = item.renderedPeer.peerId
+                guard peerIds.contains(peerId) else {
                     continue
                 }
                 guard let readCounters = item.readCounters, readCounters.isUnread else {
                     continue
                 }
-                guard let message = item.messages.first else {
+                // An album arrives as several messages in one item, and the order is not
+                // promised — the newest is the one to read up to.
+                guard let message = item.messages.max(by: { $0.index < $1.index }) else {
                     continue
                 }
                 let index = MessageIndex(id: message.id, timestamp: message.timestamp)
+                // The chat list emits again on every change, and the unread counter does not
+                // clear the instant the read is sent, so without this the same message is read
+                // over and over for as long as it takes the server to answer.
+                if let applied = self.appliedReadIndices[peerId], applied >= index {
+                    continue
+                }
+                self.appliedReadIndices[peerId] = index
                 let _ = context.engine.messages.applyMaxReadIndexInteractively(index: index).start()
             }
         })
