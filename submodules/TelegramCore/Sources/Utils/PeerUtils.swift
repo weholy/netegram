@@ -1,8 +1,9 @@
 import Foundation
+import NetegramStore
 
 /// Netegram: device-local premium override.
 ///
-/// Read straight from UserDefaults because TelegramCore cannot import SettingsUI, which
+/// Read straight from NGStore because TelegramCore cannot import SettingsUI, which
 /// already depends on it. Keys are mirrored in NetegramLocalFeatures.
 ///
 /// Scoped to the signed-in account on purpose: applying it to every TelegramUser would
@@ -12,7 +13,7 @@ private let netegramLocalPremiumKey = "netegram.local.premium"
 private let netegramLocalPremiumPeerIdKey = "netegram.local.premiumPeerId"
 
 /// Values are cached in memory because `isPremium` runs on every chat list row and every
-/// message layout — thousands of times per frame. Hitting UserDefaults there (and boxing an
+/// message layout — thousands of times per frame. Reaching the store there (and boxing an
 /// NSNumber on each call) stalls the UI badly enough to look like a hang.
 private final class NetegramLocalPremiumState {
     static let shared = NetegramLocalPremiumState()
@@ -23,7 +24,7 @@ private final class NetegramLocalPremiumState {
     private init() {
         self.reload()
         NotificationCenter.default.addObserver(
-            forName: UserDefaults.didChangeNotification,
+            forName: NGStore.didChangeNotification,
             object: nil,
             queue: .main,
             using: { [weak self] _ in
@@ -33,9 +34,8 @@ private final class NetegramLocalPremiumState {
     }
 
     private func reload() {
-        let defaults = UserDefaults.standard
-        self.enabled = defaults.bool(forKey: netegramLocalPremiumKey)
-        self.peerId = (defaults.object(forKey: netegramLocalPremiumPeerIdKey) as? NSNumber)?.int64Value ?? 0
+        self.enabled = NGStore.bool(forKey: netegramLocalPremiumKey)
+        self.peerId = (NGStore.object(forKey: netegramLocalPremiumPeerIdKey) as? NSNumber)?.int64Value ?? 0
     }
 
     func applies(to peerId: PeerId) -> Bool {
@@ -53,7 +53,7 @@ func netegramLocalPremiumApplies(to peerId: PeerId) -> Bool {
 /// Per-peer local username overrides, stored as a peer id -> username dictionary.
 ///
 /// Cached in memory for the same reason as the premium flag: `addressName` is read while
-/// laying out every chat list row, so touching UserDefaults there would stall scrolling.
+/// laying out every chat list row, so touching the store there would stall scrolling.
 private let netegramLocalUsernamesKey = "netegram.local.usernames"
 
 private final class NetegramLocalUsernameState {
@@ -64,7 +64,7 @@ private final class NetegramLocalUsernameState {
     private init() {
         self.reload()
         NotificationCenter.default.addObserver(
-            forName: UserDefaults.didChangeNotification,
+            forName: NGStore.didChangeNotification,
             object: nil,
             queue: .main,
             using: { [weak self] _ in
@@ -74,7 +74,7 @@ private final class NetegramLocalUsernameState {
     }
 
     private func reload() {
-        self.overrides = (UserDefaults.standard.dictionary(forKey: netegramLocalUsernamesKey) as? [String: String]) ?? [:]
+        self.overrides = (NGStore.dictionary(forKey: netegramLocalUsernamesKey) as? [String: String]) ?? [:]
     }
 
     func username(for peerId: PeerId) -> String? {
@@ -94,14 +94,14 @@ func netegramLocalUsername(for peerId: PeerId) -> String? {
 
 /// Writes a local username override, or clears it when `username` is nil or empty.
 public func netegramSetLocalUsername(_ username: String?, for peerId: PeerId) {
-    var overrides = (UserDefaults.standard.dictionary(forKey: netegramLocalUsernamesKey) as? [String: String]) ?? [:]
+    var overrides = (NGStore.dictionary(forKey: netegramLocalUsernamesKey) as? [String: String]) ?? [:]
     let key = "\(peerId.toInt64())"
     if let username, !username.isEmpty {
         overrides[key] = username.hasPrefix("@") ? String(username.dropFirst()) : username
     } else {
         overrides.removeValue(forKey: key)
     }
-    UserDefaults.standard.set(overrides, forKey: netegramLocalUsernamesKey)
+    NGStore.setObject(overrides, forKey: netegramLocalUsernamesKey)
 }
 
 /// Current local override for a peer, for prefilling the editor.
@@ -127,7 +127,7 @@ private final class NetegramLocalRatingState {
     private init() {
         self.reload()
         NotificationCenter.default.addObserver(
-            forName: UserDefaults.didChangeNotification,
+            forName: NGStore.didChangeNotification,
             object: nil,
             queue: .main,
             using: { [weak self] _ in
@@ -137,9 +137,8 @@ private final class NetegramLocalRatingState {
     }
 
     private func reload() {
-        let defaults = UserDefaults.standard
-        self.stars = (defaults.dictionary(forKey: netegramLocalRatingStarsKey) as? [String: Int]) ?? [:]
-        self.levels = (defaults.dictionary(forKey: netegramLocalRatingLevelKey) as? [String: Int]) ?? [:]
+        self.stars = (NGStore.dictionary(forKey: netegramLocalRatingStarsKey) as? [String: Int]) ?? [:]
+        self.levels = (NGStore.dictionary(forKey: netegramLocalRatingLevelKey) as? [String: Int]) ?? [:]
     }
 
     func rating(for peerId: PeerId) -> TelegramStarRating? {
@@ -176,35 +175,35 @@ func netegramLocalStarRating(for peerId: PeerId) -> TelegramStarRating? {
 
 /// Sets the local star count for a peer. Pass 0 to clear it.
 public func netegramSetLocalRatingStars(_ stars: Int, for peerId: PeerId) {
-    var values = (UserDefaults.standard.dictionary(forKey: netegramLocalRatingStarsKey) as? [String: Int]) ?? [:]
+    var values = (NGStore.dictionary(forKey: netegramLocalRatingStarsKey) as? [String: Int]) ?? [:]
     let key = "\(peerId.toInt64())"
     if stars > 0 {
         values[key] = stars
     } else {
         values.removeValue(forKey: key)
     }
-    UserDefaults.standard.set(values, forKey: netegramLocalRatingStarsKey)
+    NGStore.setObject(values, forKey: netegramLocalRatingStarsKey)
 }
 
 /// Sets an explicit level for a peer, overriding the one derived from the star count.
 /// Pass nil to let the level follow the stars again.
 public func netegramSetLocalRatingLevel(_ level: Int?, for peerId: PeerId) {
-    var values = (UserDefaults.standard.dictionary(forKey: netegramLocalRatingLevelKey) as? [String: Int]) ?? [:]
+    var values = (NGStore.dictionary(forKey: netegramLocalRatingLevelKey) as? [String: Int]) ?? [:]
     let key = "\(peerId.toInt64())"
     if let level, level > 0 {
         values[key] = level
     } else {
         values.removeValue(forKey: key)
     }
-    UserDefaults.standard.set(values, forKey: netegramLocalRatingLevelKey)
+    NGStore.setObject(values, forKey: netegramLocalRatingLevelKey)
 }
 
 public func netegramCurrentLocalRatingStars(for peerId: PeerId) -> Int {
-    return (UserDefaults.standard.dictionary(forKey: netegramLocalRatingStarsKey) as? [String: Int])?["\(peerId.toInt64())"] ?? 0
+    return (NGStore.dictionary(forKey: netegramLocalRatingStarsKey) as? [String: Int])?["\(peerId.toInt64())"] ?? 0
 }
 
 public func netegramCurrentLocalRatingLevel(for peerId: PeerId) -> Int? {
-    return (UserDefaults.standard.dictionary(forKey: netegramLocalRatingLevelKey) as? [String: Int])?["\(peerId.toInt64())"]
+    return (NGStore.dictionary(forKey: netegramLocalRatingLevelKey) as? [String: Int])?["\(peerId.toInt64())"]
 }
 import Postbox
 

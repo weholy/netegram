@@ -18,6 +18,7 @@ objc_library(
     ],
     deps = [
         "//submodules/EncryptionProvider:EncryptionProvider",
+        "//submodules/NetegramStore:NetegramStore",
     ],
     sdk_frameworks = [
         "Foundation",

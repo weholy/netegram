@@ -1,4 +1,5 @@
 import Foundation
+import NetegramStore
 import UIKit
 import Display
 import SwiftSignalKit
@@ -64,14 +65,19 @@ public final class NetegramAnnouncementSettings {
         self.promise = ValuePromise(NetegramAnnouncementSettings.current(), ignoreRepeated: true)
     }
 
+    /// Re-reads the store and pushes it out. Used after an import or a reset, where every
+    /// value changed at once without going through any of the setters.
+    public func republish() {
+        self.promise.set(NetegramAnnouncementSettings.current())
+    }
+
     public static func current() -> NetegramAnnouncement {
-        let defaults = UserDefaults.standard
         return NetegramAnnouncement(
-            enabled: defaults.bool(forKey: announcementEnabledKey),
-            channel: defaults.string(forKey: announcementChannelKey) ?? "",
-            title: defaults.string(forKey: announcementTitleKey) ?? "",
-            text: defaults.string(forKey: announcementTextKey) ?? "",
-            link: defaults.string(forKey: announcementLinkKey) ?? ""
+            enabled: NGStore.bool(forKey: announcementEnabledKey),
+            channel: NGStore.string(forKey: announcementChannelKey) ?? "",
+            title: NGStore.string(forKey: announcementTitleKey) ?? "",
+            text: NGStore.string(forKey: announcementTextKey) ?? "",
+            link: NGStore.string(forKey: announcementLinkKey) ?? ""
         )
     }
 
@@ -80,32 +86,27 @@ public final class NetegramAnnouncementSettings {
     }
 
     public func setEnabled(_ value: Bool) {
-        UserDefaults.standard.set(value, forKey: announcementEnabledKey)
-        UserDefaults.standard.synchronize()
+        NGStore.setObject(value, forKey: announcementEnabledKey)
         self.push()
     }
 
     public func setChannel(_ value: String) {
-        UserDefaults.standard.set(value, forKey: announcementChannelKey)
-        UserDefaults.standard.synchronize()
+        NGStore.setObject(value, forKey: announcementChannelKey)
         self.push()
     }
 
     public func setTitle(_ value: String) {
-        UserDefaults.standard.set(value, forKey: announcementTitleKey)
-        UserDefaults.standard.synchronize()
+        NGStore.setObject(value, forKey: announcementTitleKey)
         self.push()
     }
 
     public func setText(_ value: String) {
-        UserDefaults.standard.set(value, forKey: announcementTextKey)
-        UserDefaults.standard.synchronize()
+        NGStore.setObject(value, forKey: announcementTextKey)
         self.push()
     }
 
     public func setLink(_ value: String) {
-        UserDefaults.standard.set(value, forKey: announcementLinkKey)
-        UserDefaults.standard.synchronize()
+        NGStore.setObject(value, forKey: announcementLinkKey)
         self.push()
     }
 

@@ -1,4 +1,5 @@
 import Foundation
+import NetegramStore
 import CoreLocation
 import SwiftSignalKit
 
@@ -201,12 +202,11 @@ public func currentLocationManagerCoordinate(manager: DeviceLocationManager, tim
 /// Keys are mirrored in NetegramGhost (SettingsUI). This module sits below it and cannot
 /// import it.
 public func netegramSpoofedLocation() -> CLLocation? {
-    let defaults = UserDefaults.standard
-    guard defaults.bool(forKey: "netegram.location.enabled") else {
+    guard NGStore.bool(forKey: "netegram.location.enabled") else {
         return nil
     }
-    let latitude = defaults.double(forKey: "netegram.location.latitude")
-    let longitude = defaults.double(forKey: "netegram.location.longitude")
+    let latitude = NGStore.double(forKey: "netegram.location.latitude")
+    let longitude = NGStore.double(forKey: "netegram.location.longitude")
     guard latitude != 0.0 || longitude != 0.0 else {
         return nil
     }

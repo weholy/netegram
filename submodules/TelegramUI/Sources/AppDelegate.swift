@@ -1,4 +1,5 @@
 import UIKit
+import NetegramStore
 import SwiftSignalKit
 import Display
 import TelegramCore
@@ -414,14 +415,15 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         self.window = window
         self.nativeWindow = window
 
-        // Netegram: force settings to disk whenever the app steps back.
+        // Netegram: force everything the fork owns to disk whenever the app steps back.
         //
-        // UserDefaults keeps recent writes in memory and flushes them on its own schedule. An
-        // app that iOS terminates while suspended never gets to flush, and the settings come
-        // back as they were hours ago — which is exactly the "resets itself" complaint. Each
-        // Netegram write already flushes; this catches whatever else was still pending.
+        // Settings are written through on each change, so this is really for the two stores
+        // that buffer: the deleted-message marks, which gather a burst of appends before
+        // saving, and whatever Telegram itself still has pending in its preferences.
         for name in [UIApplication.willResignActiveNotification, UIApplication.didEnterBackgroundNotification] {
             NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main, using: { _ in
+                NGStore.flush()
+                NetegramDeletedMessages.flush()
                 UserDefaults.standard.synchronize()
             })
         }
@@ -1391,6 +1393,10 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
                     self.mainWindow.viewController = context.rootController
                     // Netegram: gives the delayed-send notice somewhere to present from.
                     NetegramDelayedSendNotice.shared.setContext(context.context)
+                    // Netegram: starts broadcasting the fake activity, if one is switched on.
+                    // Here rather than at first use because the point of it is to run while the
+                    // chat it is aimed at has never been opened.
+                    NetegramFakeActivityManager.shared.setContext(context.context)
                     
                     if firstTime {
                         let layer = context.rootController.view.layer

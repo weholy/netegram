@@ -1,4 +1,5 @@
 import Foundation
+import NetegramStore
 import UniformTypeIdentifiers
 import UIKit
 import Display
@@ -1655,7 +1656,7 @@ public class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDeleg
         // Netegram: true while "Liquid Glass on the input panel" is on. Cached because this
         // runs on every layout pass. The key is mirrored in NetegramSettings — this module
         // cannot import SettingsUI, which sits above it.
-        let netegramInputPanelGlass = UserDefaults.standard.bool(forKey: "netegram.liquidGlass.inputPanel")
+        let netegramInputPanelGlass = NGStore.bool(forKey: "netegram.liquidGlass.inputPanel")
 
         let defaultGlassTintColor: GlassBackgroundView.TintColor
         let defaultGlassTintWithInnerColor: GlassBackgroundView.TintColor

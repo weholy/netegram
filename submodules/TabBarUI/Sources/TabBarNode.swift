@@ -1,4 +1,5 @@
 import Foundation
+import NetegramStore
 import UIKit
 import AsyncDisplayKit
 import SwiftSignalKit
@@ -830,6 +831,6 @@ public func netegramTabBarHeightScale() -> CGFloat {
 /// well as on write: a value from an older build, or one edited by hand, must not be able to
 /// collapse the bar to nothing or push it off the screen.
 private func netegramTabBarScale(key: String) -> CGFloat {
-    let percent = UserDefaults.standard.object(forKey: key) as? Int ?? 100
+    let percent = NGStore.object(forKey: key) as? Int ?? 100
     return CGFloat(max(50, min(150, percent))) / 100.0
 }

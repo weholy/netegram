@@ -11,19 +11,6 @@ import TelegramCore
 import MoreHeaderButton
 import GlassBackgroundComponent
 
-/// Netegram: the tint to use for the header's floating button clusters.
-///
-/// A function rather than a stored TintColor: read fresh at each call because the toggle can
-/// flip while the header is on screen, and this runs on every layout pass anyway. The key is
-/// mirrored in NetegramSettings — this module cannot import SettingsUI, which sits above it.
-private func netegramHeaderGlassTint() -> GlassBackgroundView.TintColor {
-    if UserDefaults.standard.bool(forKey: "netegram.liquidGlass.header") {
-        return .init(kind: .clear)
-    }
-    return .init(kind: .panel)
-}
-
-
 public final class HeaderNetworkStatusComponent: Component {
     public enum Content: Equatable {
         case connecting
@@ -1142,7 +1129,7 @@ public final class ChatListHeaderComponent: Component {
                 }
                 let leftButtonsContainerFrame = CGRect(origin: CGPoint(x: component.sideInset, y: 0.0), size: CGSize(width: max(44.0, leftButtonsEffectiveWidth), height: 44.0))
                 leftButtonsBackgroundContainerTransition.setFrame(view: leftButtonsBackgroundContainer, frame: leftButtonsContainerFrame)
-                leftButtonsBackgroundContainer.update(size: leftButtonsContainerFrame.size, cornerRadius: leftButtonsContainerFrame.height * 0.5, isDark: component.theme.overallDarkAppearance, tintColor: netegramHeaderGlassTint(), isInteractive: true, transition: leftButtonsBackgroundContainerTransition)
+                leftButtonsBackgroundContainer.update(size: leftButtonsContainerFrame.size, cornerRadius: leftButtonsContainerFrame.height * 0.5, isDark: component.theme.overallDarkAppearance, tintColor: .init(kind: .panel), isInteractive: true, transition: leftButtonsBackgroundContainerTransition)
                 leftButtonsBackgroundContainerTransition.setFrame(view: self.leftButtonsContainer, frame: CGRect(origin: CGPoint(), size: leftButtonsContainerFrame.size)) 
             } else {
                 if let leftButtonsBackgroundContainer = self.leftButtonsBackgroundContainer {
@@ -1168,16 +1155,16 @@ public final class ChatListHeaderComponent: Component {
                     self.addSubview(rightButtonsBackgroundContainer)
                     rightButtonsBackgroundContainer.contentView.addSubview(self.rightButtonsContainer)
                     
-                    rightButtonsBackgroundContainer.update(size: rightButtonsContainerFrame.size, cornerRadius: rightButtonsContainerFrame.height * 0.5, isDark: component.theme.overallDarkAppearance, tintColor: netegramHeaderGlassTint(), isInteractive: true, isVisible: false, transition: .immediate)
+                    rightButtonsBackgroundContainer.update(size: rightButtonsContainerFrame.size, cornerRadius: rightButtonsContainerFrame.height * 0.5, isDark: component.theme.overallDarkAppearance, tintColor: .init(kind: .panel), isInteractive: true, isVisible: false, transition: .immediate)
                 }
                 rightButtonsBackgroundContainerTransition.setFrame(view: rightButtonsBackgroundContainer, frame: rightButtonsContainerFrame)
-                rightButtonsBackgroundContainer.update(size: rightButtonsContainerFrame.size, cornerRadius: rightButtonsContainerFrame.height * 0.5, isDark: component.theme.overallDarkAppearance, tintColor: netegramHeaderGlassTint(), isInteractive: true, transition: transition)
+                rightButtonsBackgroundContainer.update(size: rightButtonsContainerFrame.size, cornerRadius: rightButtonsContainerFrame.height * 0.5, isDark: component.theme.overallDarkAppearance, tintColor: .init(kind: .panel), isInteractive: true, transition: transition)
                 rightButtonsBackgroundContainerTransition.setFrame(view: self.rightButtonsContainer, frame: CGRect(origin: CGPoint(), size: rightButtonsContainerFrame.size))
             } else {
                 if let rightButtonsBackgroundContainer = self.rightButtonsBackgroundContainer {
                     self.rightButtonsBackgroundContainer = nil
                     
-                    rightButtonsBackgroundContainer.update(size: rightButtonsBackgroundContainer.bounds.size, cornerRadius: rightButtonsBackgroundContainer.bounds.height * 0.5, isDark: component.theme.overallDarkAppearance, tintColor: netegramHeaderGlassTint(), isInteractive: true, isVisible: false, transition: transition)
+                    rightButtonsBackgroundContainer.update(size: rightButtonsBackgroundContainer.bounds.size, cornerRadius: rightButtonsBackgroundContainer.bounds.height * 0.5, isDark: component.theme.overallDarkAppearance, tintColor: .init(kind: .panel), isInteractive: true, isVisible: false, transition: transition)
                     transition.attachAnimation(view: rightButtonsBackgroundContainer, id: "remove", completion: { [weak rightButtonsBackgroundContainer] _ in
                         rightButtonsBackgroundContainer?.removeFromSuperview()
                     })

@@ -45,7 +45,6 @@ private func getCoveringViewSnaphot(window: Window1) -> UIImage? {
         context.scaleBy(x: scale, y: scale)
         UIGraphicsPushContext(context)
 
-        window.badgeView.alpha = 0.0
         window.forEachViewController({ controller in
             if let controller = controller as? PasscodeEntryController {
                 controller.displayNode.alpha = 0.0
@@ -59,8 +58,6 @@ private func getCoveringViewSnaphot(window: Window1) -> UIImage? {
             }
             return true
         })
-        window.badgeView.alpha = 1.0
-        
         UIGraphicsPopContext()
     }).flatMap(applyScreenshotEffectToImage)
 }

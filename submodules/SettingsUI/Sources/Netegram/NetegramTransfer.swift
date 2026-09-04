@@ -1,4 +1,5 @@
 import Foundation
+import NetegramStore
 import UIKit
 import UniformTypeIdentifiers
 import Display
@@ -31,39 +32,20 @@ public enum NetegramTransferStrings {
 
 /// Netegram: reading and writing every setting this fork owns, as one JSON document.
 ///
-/// Everything lives under the `netegram.` prefix in UserDefaults, which makes the set easy to
-/// walk without keeping a list that would drift out of date every time a switch is added.
+/// Everything lives under the `netegram.` prefix in NGStore, which makes the set easy to walk
+/// without keeping a list that would drift out of date every time a switch is added.
 public enum NetegramTransfer {
-    private static let keyPrefix = "netegram."
     /// Bumped if the shape ever changes, so an old file can be recognised rather than
     /// half-applied.
     private static let formatVersion = 1
 
-    private static func exportableKeys() -> [String] {
-        return UserDefaults.standard.dictionaryRepresentation().keys.filter { $0.hasPrefix(NetegramTransfer.keyPrefix) }
-    }
-
     /// The document handed to the share sheet.
-    ///
-    /// Only values JSON can carry are taken. Everything the fork stores is a string, number,
-    /// boolean or array of strings, so nothing is actually lost — the check is there so a
-    /// future setting holding something exotic cannot produce a file that fails to encode.
     public static func exportData() -> Data? {
-        var values: [String: Any] = [:]
-        for key in NetegramTransfer.exportableKeys() {
-            guard let value = UserDefaults.standard.object(forKey: key) else {
-                continue
-            }
-            if JSONSerialization.isValidJSONObject([value]) {
-                values[key] = value
-            }
-        }
-
         let document: [String: Any] = [
             "format": NetegramTransfer.formatVersion,
             "app": "Netegram",
             "exportedAt": Int(Date().timeIntervalSince1970),
-            "settings": values
+            "settings": NGStore.allValues()
         ]
         return try? JSONSerialization.data(withJSONObject: document, options: [.prettyPrinted, .sortedKeys])
     }
@@ -71,7 +53,8 @@ public enum NetegramTransfer {
     /// Applies a previously exported document. Returns false when the file is not one of ours.
     ///
     /// Keys outside our prefix are ignored rather than trusted: an imported file must not be
-    /// able to reach into Telegram's own preferences.
+    /// able to reach into Telegram's own preferences. NGStore enforces that itself, so a file
+    /// carrying junk alongside our keys still applies the part that belongs to us.
     @discardableResult
     public static func importData(_ data: Data) -> Bool {
         guard
@@ -83,18 +66,34 @@ public enum NetegramTransfer {
             return false
         }
 
-        for (key, value) in settings where key.hasPrefix(NetegramTransfer.keyPrefix) {
-            UserDefaults.standard.set(value, forKey: key)
-        }
-        UserDefaults.standard.synchronize()
+        NGStore.applyValues(settings)
+        NetegramTransfer.republishSettings()
         return true
     }
 
     public static func reset() {
-        for key in NetegramTransfer.exportableKeys() {
-            UserDefaults.standard.removeObject(forKey: key)
-        }
-        UserDefaults.standard.synchronize()
+        NGStore.removeAllValues()
+        NetegramTransfer.republishSettings()
+    }
+
+    /// Pushes the freshly loaded values into everything holding a copy in memory.
+    ///
+    /// Writing the keys is only half of an import. The screens read their state from
+    /// `ValuePromise`s, and the surfaces that draw glass or a local override keep a cached
+    /// copy so layout never reaches the store — none of which notice a value that changed
+    /// underneath them. That is why importing a file used to appear to do nothing until the
+    /// app was restarted.
+    ///
+    /// The caches observe `NGStore.didChangeNotification`, which the store has already posted
+    /// by this point; what is left is the promises this module owns.
+    private static func republishSettings() {
+        NetegramSettings.shared.republish()
+        NetegramLocalFeatures.shared.republish()
+        NetegramGhostPreferences.shared.republish()
+        NetegramLookPreferences.shared.republish()
+        NetegramBackgroundSettings.shared.republish()
+        NetegramAnnouncementSettings.shared.republish()
+        NetegramFakePreferences.shared.republish()
     }
 
     /// Written to a temporary file because the share sheet hands other apps a URL, not bytes.

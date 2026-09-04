@@ -1,4 +1,5 @@
 import Foundation
+import NetegramStore
 import UIKit
 import AsyncDisplayKit
 import Display
@@ -1471,17 +1472,17 @@ private final class LensTransitionContainerEffectViewImpl: UIView, LensTransitio
         fatalError("init(coder:) has not been implemented")
     }
     
-    /// Caches the "Liquid Glass everywhere" preference. The key is mirrored in
+    /// Caches the context-menu redesign preference. The key is mirrored in
     /// NetegramSettings — this module cannot import SettingsUI, which depends on it.
     fileprivate final class NetegramContextGlassPreference {
         static let shared = NetegramContextGlassPreference()
 
-        private(set) var everywhere: Bool = false
+        private(set) var isClear: Bool = false
 
         private init() {
             self.reload()
             NotificationCenter.default.addObserver(
-                forName: UserDefaults.didChangeNotification,
+                forName: NGStore.didChangeNotification,
                 object: nil,
                 queue: .main,
                 using: { [weak self] _ in
@@ -1491,21 +1492,19 @@ private final class LensTransitionContainerEffectViewImpl: UIView, LensTransitio
         }
 
         private func reload() {
-            let defaults = UserDefaults.standard
             // The redesigned menu is meant to sit on clear glass, so it turns the blur off
-            // on its own — without also requiring "Liquid Glass everywhere".
-            self.everywhere = defaults.bool(forKey: "netegram.liquidGlass.everywhere")
-                || defaults.bool(forKey: "netegram.look.contextRedesign")
+            // on its own.
+            self.isClear = NGStore.bool(forKey: "netegram.look.contextRedesign")
         }
     }
 
     func update(theme: PresentationTheme) {
         self.theme = theme
         if #available(iOS 26.0, *) {
-            // Netegram: with "Liquid Glass everywhere" on, context menus — the sheet behind
+            // Netegram: with the redesigned menu on, context menus — the sheet behind
             // the three-dot button and the long-press chat menu — switch to the clear
             // variant instead of the regular one.
-            let glassEffectValue = UIGlassEffect(style: NetegramContextGlassPreference.shared.everywhere ? .clear : .regular)
+            let glassEffectValue = UIGlassEffect(style: NetegramContextGlassPreference.shared.isClear ? .clear : .regular)
             self.glassView.effect = glassEffectValue
         }
     }

@@ -10,6 +10,7 @@ swift_library(
         "-warnings-as-errors",
     ],
     deps = [
+        "//submodules/NetegramStore:NetegramStore",
         "//submodules/AccountContext",
         "//submodules/TelegramUI/Components/AnimationCache",
         "//submodules/AnimationUI",

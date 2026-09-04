@@ -1,4 +1,5 @@
 import Foundation
+import NetegramStore
 import UIKit
 import AsyncDisplayKit
 import ContextUI
@@ -281,7 +282,7 @@ final class PeerInfoHeaderButtonNode: HighlightableButtonNode {
         
         // Netegram: a circle needs a square background, not just a large corner radius —
         // the button is wider than it is tall, so half the smaller side only gives a pill.
-        let isRoundButtons = UserDefaults.standard.bool(forKey: "netegram.look.roundProfileButtons")
+        let isRoundButtons = NGStore.bool(forKey: "netegram.look.roundProfileButtons")
         let backgroundY: CGFloat = size.height * (1.0 - fraction)
         var backgroundFrame = CGRect(origin: CGPoint(x: 0.0, y: backgroundY), size: CGSize(width: size.width, height: max(0.0, size.height - backgroundY)))
         if isRoundButtons {

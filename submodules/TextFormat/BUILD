@@ -12,6 +12,7 @@ swift_library(
         "-warnings-as-errors",
     ],
     deps = [
+        "//submodules/NetegramStore:NetegramStore",
         "//submodules/SSignalKit/SwiftSignalKit",
     	"//submodules/TelegramCore:TelegramCore",
         "//submodules/Display:Display",

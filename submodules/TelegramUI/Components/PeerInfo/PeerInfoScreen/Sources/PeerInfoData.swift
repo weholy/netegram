@@ -1,4 +1,5 @@
 import Foundation
+import NetegramStore
 import UIKit
 import Postbox
 import TelegramCore
@@ -2711,7 +2712,7 @@ func peerInfoHeaderButtons(peer: EnginePeer?, cachedData: CachedPeerData?, isOpe
 
     // Netegram: drop the buttons the user chose to hide. The header lays out only what it
     // is given, so the remaining buttons close the gap on their own.
-    let hiddenButtons = UserDefaults.standard.stringArray(forKey: "netegram.look.hiddenProfileButtons") ?? []
+    let hiddenButtons = NGStore.stringArray(forKey: "netegram.look.hiddenProfileButtons") ?? []
     if !hiddenButtons.isEmpty {
         if hiddenButtons.contains("call") {
             result.removeAll(where: { $0 == .call || $0 == .videoCall })

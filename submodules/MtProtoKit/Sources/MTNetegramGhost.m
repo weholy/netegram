@@ -1,5 +1,7 @@
 #import <MtProtoKit/MTNetegramGhost.h>
 
+#import <NetegramStore/NGStore.h>
+
 NSString * const MTNetegramDelayedSendStartedNotification = @"MTNetegramDelayedSendStarted";
 
 // Constructor ids of the functions ghost mode cares about. They are part of the TL schema and
@@ -62,8 +64,12 @@ static const int32_t MTGhostInputPeerChannelFromMessage = -1121318848;
 
 /// Keys are mirrored in NetegramGhost (SettingsUI). MTProtoKit sits far below the app's
 /// settings modules and cannot import them, so the store is read directly.
+///
+/// NGStore rather than NSUserDefaults: this code runs inside the notification service and the
+/// share extension too, and a preferences domain there is the extension's own — every ghost
+/// flag read as NO however the user had set it.
 static BOOL MTGhostFlag(NSString *key) {
-    return [[NSUserDefaults standardUserDefaults] boolForKey:key];
+    return [NGStore boolForKey:key];
 }
 
 #pragma mark - Fabricated responses
@@ -328,7 +334,7 @@ static NSInteger MTGhostSendGeneration = 0;
         return 0.0;
     }
 
-    NSInteger seconds = [[NSUserDefaults standardUserDefaults] integerForKey:@"netegram.ghost.delayedSendSeconds"];
+    NSInteger seconds = [NGStore integerForKey:@"netegram.ghost.delayedSendSeconds"];
     if (seconds <= 0) {
         seconds = 5;
     }

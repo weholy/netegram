@@ -1,4 +1,5 @@
 import Foundation
+import NetegramStore
 import UIKit
 import Display
 import TelegramPresentationData
@@ -12,7 +13,7 @@ import GlassBackgroundComponent
 /// changes, which are already infrequent, so there is nothing worth caching against. The key
 /// is mirrored in NetegramSettings — this module cannot import SettingsUI, which sits above it.
 private func netegramTabBarGlassTint() -> GlassBackgroundView.TintColor {
-    if UserDefaults.standard.bool(forKey: "netegram.liquidGlass.tabBar") {
+    if NGStore.bool(forKey: "netegram.liquidGlass.tabBar") {
         return .init(kind: .clear)
     }
     return .init(kind: .panel)

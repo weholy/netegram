@@ -1,4 +1,5 @@
 import Foundation
+import NetegramStore
 import UIKit
 import AVFoundation
 
@@ -55,9 +56,8 @@ public final class NetegramAppBackgroundView: UIView {
     /// so the caller knows whether the container still needs its opaque fill.
     @discardableResult
     public static func install(in containerView: UIView) -> Bool {
-        let defaults = UserDefaults.standard
-        let mode = defaults.integer(forKey: backgroundModeKey)
-        let fileName = defaults.string(forKey: backgroundPathKey) ?? ""
+        let mode = NGStore.integer(forKey: backgroundModeKey)
+        let fileName = NGStore.string(forKey: backgroundPathKey) ?? ""
         guard mode != 0, let url = netegramBackgroundFileURL(fileName: fileName), FileManager.default.fileExists(atPath: url.path) else {
             return false
         }

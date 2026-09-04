@@ -12,7 +12,6 @@ public enum NetegramRestartStrings {
     public static let profileButtons = "Перезапустите Netegram, чтобы кнопки профиля перерисовались."
     public static let background = "Перезапустите Netegram, чтобы фон встал позади всех экранов."
     public static let navBar = "Перезапустите Netegram, чтобы нижняя панель пересобралась."
-    public static let badge = "Перезапустите Netegram, чтобы бейдж перекрасился."
     public static let ads = "Перезапустите Netegram — уже загруженная реклама исчезнет вместе с ней."
 }
 

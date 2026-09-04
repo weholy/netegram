@@ -1,4 +1,5 @@
 import Foundation
+import NetegramStore
 import UIKit
 import Display
 import ContextUI
@@ -40,7 +41,7 @@ final class NetegramContextBlurPreference {
     private init() {
         self.reload()
         NotificationCenter.default.addObserver(
-            forName: UserDefaults.didChangeNotification,
+            forName: NGStore.didChangeNotification,
             object: nil,
             queue: .main,
             using: { [weak self] _ in
@@ -50,7 +51,7 @@ final class NetegramContextBlurPreference {
     }
 
     private func reload() {
-        self.redesign = UserDefaults.standard.bool(forKey: "netegram.look.contextRedesign")
+        self.redesign = NGStore.bool(forKey: "netegram.look.contextRedesign")
     }
 }
 

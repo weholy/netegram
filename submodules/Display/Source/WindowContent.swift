@@ -262,7 +262,6 @@ public final class WindowKeyboardGestureRecognizerDelegate: NSObject, UIGestureR
 
 public class Window1 {
     public let hostView: WindowHostView
-    public let badgeView: UIImageView
     
     private var deviceMetrics: DeviceMetrics
     
@@ -347,13 +346,6 @@ public class Window1 {
     
     public init(hostView: WindowHostView, statusBarHost: StatusBarHost?) {
         self.hostView = hostView
-        self.badgeView = UIImageView()
-        // Netegram: two colourways, picked in Local Features. The key is mirrored there —
-        // this module cannot import SettingsUI, which sits above it. Read once at launch,
-        // like the rest of this fork's "restart to apply" toggles.
-        let netegramBadgeAsset = UserDefaults.standard.bool(forKey: "netegram.badge.white") ? "Components/AppBadgeWhite" : "Components/AppBadge"
-        self.badgeView.image = UIImage(bundleImageName: netegramBadgeAsset)
-        self.badgeView.isHidden = true
         
         self.systemUserInterfaceStyle = hostView.systemUserInterfaceStyle
         
@@ -719,7 +711,6 @@ public class Window1 {
         }
         self.windowPanRecognizer = recognizer
         self.hostView.containerView.addGestureRecognizer(recognizer)
-        self.hostView.containerView.addSubview(self.badgeView)
     }
             
     public required init(coder aDecoder: NSCoder) {
@@ -747,15 +738,6 @@ public class Window1 {
         }
     }
     
-    private var forceBadgeHidden = true
-    public func setForceBadgeHidden(_ hidden: Bool) {
-        guard hidden != self.forceBadgeHidden else {
-            return
-        }
-        self.forceBadgeHidden = hidden
-        self.updateBadgeVisibility()
-    }
-    
     private var proximityDimController: CustomDimController?
     public func setProximityDimHidden(_ hidden: Bool) {
         if !hidden {
@@ -767,20 +749,6 @@ public class Window1 {
         } else if let proximityDimController = self.proximityDimController {
             self.proximityDimController = nil
             proximityDimController.dismiss()
-        }
-    }
-    
-    private func updateBadgeVisibility() {
-        let badgeIsHidden = !self.deviceMetrics.showAppBadge || self.forceBadgeHidden || self.windowLayout.size.width > self.windowLayout.size.height
-        if badgeIsHidden != self.badgeView.isHidden && !badgeIsHidden {
-            Queue.mainQueue().after(0.4) {
-                let badgeShouldBeHidden = !self.deviceMetrics.showAppBadge || self.forceBadgeHidden || self.windowLayout.size.width > self.windowLayout.size.height
-                if badgeShouldBeHidden == badgeIsHidden {
-                    self.badgeView.isHidden = badgeIsHidden
-                }
-            }
-        } else {
-            self.badgeView.isHidden = badgeIsHidden
         }
     }
     
@@ -974,7 +942,7 @@ public class Window1 {
                 if let coveringView = self.coveringView {
                     self.hostView.containerView.insertSubview(controller.view, belowSubview: coveringView)
                 } else {
-                    self.hostView.containerView.insertSubview(controller.view, belowSubview: self.badgeView)
+                    self.hostView.containerView.addSubview(controller.view)
                 }
                 
                 if let controller = controller as? ViewController {
@@ -1014,7 +982,7 @@ public class Window1 {
                     if let controller = self.topPresentationContext.controllers.first {
                         self.hostView.containerView.insertSubview(coveringView, belowSubview: controller.0.displayNode.view)
                     } else {
-                        self.hostView.containerView.insertSubview(coveringView, belowSubview: self.badgeView)
+                        self.hostView.containerView.addSubview(coveringView)
                     }
                     if !self.windowLayout.size.width.isZero {
                         coveringView.frame = CGRect(origin: CGPoint(), size: self.windowLayout.size)
@@ -1260,10 +1228,6 @@ public class Window1 {
                     coveringView.updateLayout(self.windowLayout.size)
                 }
                 
-                if let image = self.badgeView.image {
-                    self.updateBadgeVisibility()
-                    self.badgeView.frame = CGRect(origin: CGPoint(x: floorToScreenPixels((self.windowLayout.size.width - image.size.width) / 2.0), y: 5.0 + self.deviceMetrics.netegramAppBadgeOffset), size: image.size)
-                }
             }
         }
     }

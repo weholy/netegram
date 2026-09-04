@@ -1,4 +1,5 @@
 import Foundation
+import NetegramStore
 import UIKit
 import Display
 import SwiftSignalKit
@@ -56,12 +57,17 @@ public final class NetegramBackgroundSettings {
         self.promise = ValuePromise(NetegramBackgroundSettings.current(), ignoreRepeated: true)
     }
 
+    /// Re-reads the store and pushes it out. Used after an import or a reset, where every
+    /// value changed at once without going through any of the setters.
+    public func republish() {
+        self.promise.set(NetegramBackgroundSettings.current())
+    }
+
     public static func current() -> NetegramBackgroundState {
-        let defaults = UserDefaults.standard
-        let rawMode = Int32(defaults.integer(forKey: backgroundModeKey))
+        let rawMode = Int32(NGStore.integer(forKey: backgroundModeKey))
         return NetegramBackgroundState(
             mode: NetegramBackgroundMode(rawValue: rawMode) ?? .none,
-            path: defaults.string(forKey: backgroundPathKey) ?? ""
+            path: NGStore.string(forKey: backgroundPathKey) ?? ""
         )
     }
 
@@ -70,14 +76,12 @@ public final class NetegramBackgroundSettings {
     }
 
     public func setMode(_ mode: NetegramBackgroundMode) {
-        UserDefaults.standard.set(Int(mode.rawValue), forKey: backgroundModeKey)
-        UserDefaults.standard.synchronize()
+        NGStore.setObject(Int(mode.rawValue), forKey: backgroundModeKey)
         self.promise.set(NetegramBackgroundSettings.current())
     }
 
     public func setPath(_ path: String) {
-        UserDefaults.standard.set(path, forKey: backgroundPathKey)
-        UserDefaults.standard.synchronize()
+        NGStore.setObject(path, forKey: backgroundPathKey)
         self.promise.set(NetegramBackgroundSettings.current())
     }
 }

@@ -1,4 +1,5 @@
 import Foundation
+import NetegramStore
 import UIKit
 import Display
 import TelegramCore
@@ -807,7 +808,7 @@ private final class NetegramBubbleGlassPreference {
     private init() {
         self.reload()
         NotificationCenter.default.addObserver(
-            forName: UserDefaults.didChangeNotification,
+            forName: NGStore.didChangeNotification,
             object: nil,
             queue: .main,
             using: { [weak self] _ in
@@ -817,7 +818,7 @@ private final class NetegramBubbleGlassPreference {
     }
 
     private func reload() {
-        self.enabled = UserDefaults.standard.bool(forKey: "netegram.liquidGlass.messages")
+        self.enabled = NGStore.bool(forKey: "netegram.liquidGlass.messages")
     }
 }
 
@@ -841,7 +842,7 @@ private final class NetegramAppBackgroundPreference {
     private init() {
         self.reload()
         NotificationCenter.default.addObserver(
-            forName: UserDefaults.didChangeNotification,
+            forName: NGStore.didChangeNotification,
             object: nil,
             queue: .main,
             using: { [weak self] _ in
@@ -851,9 +852,8 @@ private final class NetegramAppBackgroundPreference {
     }
 
     private func reload() {
-        let defaults = UserDefaults.standard
-        let hasMedia = !(defaults.string(forKey: "netegram.background.path") ?? "").isEmpty
-        self.isActive = defaults.integer(forKey: "netegram.background.mode") != 0 && hasMedia
+        let hasMedia = !(NGStore.string(forKey: "netegram.background.path") ?? "").isEmpty
+        self.isActive = NGStore.integer(forKey: "netegram.background.mode") != 0 && hasMedia
     }
 }
 

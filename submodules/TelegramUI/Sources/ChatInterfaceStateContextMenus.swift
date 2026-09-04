@@ -1,4 +1,5 @@
 import Foundation
+import NetegramStore
 import UIKit
 import TelegramCore
 import AsyncDisplayKit
@@ -2518,7 +2519,7 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
         // Netegram: with the redesign enabled, pull "Select", "Copy" and "Delete" out of the
         // list and put them in a row at the top. Applied to the finished array so none of
         // the assembly above has to change; with the toggle off the menu is untouched.
-        if UserDefaults.standard.bool(forKey: "netegram.look.contextRedesign") {
+        if NGStore.bool(forKey: "netegram.look.contextRedesign") {
             actions = netegramApplyContextRedesign(
                 actions: actions,
                 selectTitle: chatPresentationInterfaceState.strings.Conversation_ContextMenuSelect,

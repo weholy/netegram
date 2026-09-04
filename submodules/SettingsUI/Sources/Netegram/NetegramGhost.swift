@@ -1,4 +1,5 @@
 import Foundation
+import NetegramStore
 import SwiftSignalKit
 
 /// Netegram: the ghost-mode switches.
@@ -160,19 +161,24 @@ public final class NetegramGhostPreferences {
         self.promise = ValuePromise(NetegramGhostPreferences.current(), ignoreRepeated: true)
     }
 
+    /// Re-reads the store and pushes it out. Used after an import or a reset, where every
+    /// value changed at once without going through any of the setters.
+    public func republish() {
+        self.promise.set(NetegramGhostPreferences.current())
+    }
+
     public static func current() -> NetegramGhostSettings {
-        let defaults = UserDefaults.standard
         var flags: [String: Bool] = [:]
         for row in netegramGhostRows {
-            flags[row.key] = defaults.bool(forKey: row.key)
+            flags[row.key] = NGStore.bool(forKey: row.key)
         }
-        let seconds = defaults.object(forKey: NetegramGhostKeys.delayedSendSeconds) as? Int ?? 5
+        let seconds = NGStore.object(forKey: NetegramGhostKeys.delayedSendSeconds) as? Int ?? 5
         return NetegramGhostSettings(
             flags: flags,
             delayedSendSeconds: Int32(seconds),
-            deviceName: defaults.string(forKey: NetegramGhostKeys.deviceName) ?? "",
-            latitude: defaults.double(forKey: NetegramGhostKeys.locationLatitude),
-            longitude: defaults.double(forKey: NetegramGhostKeys.locationLongitude)
+            deviceName: NGStore.string(forKey: NetegramGhostKeys.deviceName) ?? "",
+            latitude: NGStore.double(forKey: NetegramGhostKeys.locationLatitude),
+            longitude: NGStore.double(forKey: NetegramGhostKeys.locationLongitude)
         )
     }
 
@@ -184,51 +190,46 @@ public final class NetegramGhostPreferences {
     /// online and hiding that you are online are opposite instructions about the same thing,
     /// so turning either on turns the other off.
     public func setFlag(_ key: String, value: Bool) {
-        let defaults = UserDefaults.standard
-        defaults.set(value, forKey: key)
+        NGStore.setObject(value, forKey: key)
         if value {
             if key == NetegramGhostKeys.alwaysOnline {
-                defaults.set(false, forKey: NetegramGhostKeys.hideOnline)
+                NGStore.setObject(false, forKey: NetegramGhostKeys.hideOnline)
             } else if key == NetegramGhostKeys.hideOnline {
-                defaults.set(false, forKey: NetegramGhostKeys.alwaysOnline)
+                NGStore.setObject(false, forKey: NetegramGhostKeys.alwaysOnline)
             }
         }
         self.promise.set(NetegramGhostPreferences.current())
     }
 
     public func setDelayedSendSeconds(_ value: Int32) {
-        UserDefaults.standard.set(Int(value), forKey: NetegramGhostKeys.delayedSendSeconds)
-        UserDefaults.standard.synchronize()
+        NGStore.setObject(Int(value), forKey: NetegramGhostKeys.delayedSendSeconds)
         self.promise.set(NetegramGhostPreferences.current())
     }
 
     public func setDeviceName(_ value: String) {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        UserDefaults.standard.set(trimmed, forKey: NetegramGhostKeys.deviceName)
-        UserDefaults.standard.synchronize()
+        NGStore.setObject(trimmed, forKey: NetegramGhostKeys.deviceName)
         self.promise.set(NetegramGhostPreferences.current())
     }
 
     public func setLocation(latitude: Double, longitude: Double) {
-        let defaults = UserDefaults.standard
-        defaults.set(latitude, forKey: NetegramGhostKeys.locationLatitude)
-        defaults.set(longitude, forKey: NetegramGhostKeys.locationLongitude)
+        NGStore.setObject(latitude, forKey: NetegramGhostKeys.locationLatitude)
+        NGStore.setObject(longitude, forKey: NetegramGhostKeys.locationLongitude)
         self.promise.set(NetegramGhostPreferences.current())
     }
 
     /// Clearing the point also clears the switch: a spoof turned on with nowhere to be is a
     /// setting that silently does nothing.
     public func resetLocation() {
-        let defaults = UserDefaults.standard
-        defaults.set(0.0, forKey: NetegramGhostKeys.locationLatitude)
-        defaults.set(0.0, forKey: NetegramGhostKeys.locationLongitude)
-        defaults.set(false, forKey: NetegramGhostKeys.locationEnabled)
+        NGStore.setObject(0.0, forKey: NetegramGhostKeys.locationLatitude)
+        NGStore.setObject(0.0, forKey: NetegramGhostKeys.locationLongitude)
+        NGStore.setObject(false, forKey: NetegramGhostKeys.locationEnabled)
         self.promise.set(NetegramGhostPreferences.current())
     }
 }
 
 /// Read at connection setup, where the real device model would otherwise be reported.
 public func netegramCustomDeviceName() -> String? {
-    let value = UserDefaults.standard.string(forKey: NetegramGhostKeys.deviceName) ?? ""
+    let value = NGStore.string(forKey: NetegramGhostKeys.deviceName) ?? ""
     return value.isEmpty ? nil : value
 }

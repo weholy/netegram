@@ -1,5 +1,6 @@
 import Foundation
 import Postbox
+import NetegramStore
 import MtProtoKit
 import SwiftSignalKit
 import TelegramApi
@@ -788,7 +789,7 @@ private extension StarsContext.State.Subscription {
 ///
 /// Keys mirror NetegramLocalFeatures — TelegramCore cannot import SettingsUI, which already
 /// depends on it. Values are cached in memory because the balance signal fires during list
-/// updates, and reading UserDefaults there would stall scrolling.
+/// updates, and reaching the store there would stall scrolling.
 ///
 /// Display only: the server keeps the real balance, so nothing here can be spent.
 private let netegramLocalStarsEnabledKey = "netegram.local.starsEnabled"
@@ -803,7 +804,7 @@ private final class NetegramLocalStarsState {
     private init() {
         self.reload()
         NotificationCenter.default.addObserver(
-            forName: UserDefaults.didChangeNotification,
+            forName: NGStore.didChangeNotification,
             object: nil,
             queue: .main,
             using: { [weak self] _ in
@@ -813,9 +814,8 @@ private final class NetegramLocalStarsState {
     }
 
     private func reload() {
-        let defaults = UserDefaults.standard
-        self.enabled = defaults.bool(forKey: netegramLocalStarsEnabledKey)
-        self.amount = Int64(defaults.integer(forKey: netegramLocalStarsAmountKey))
+        self.enabled = NGStore.bool(forKey: netegramLocalStarsEnabledKey)
+        self.amount = Int64(NGStore.integer(forKey: netegramLocalStarsAmountKey))
     }
 }
 

@@ -1,4 +1,5 @@
 import Foundation
+import NetegramStore
 import UIKit
 import Display
 import SwiftSignalKit
@@ -68,7 +69,7 @@ public enum NetegramNavTab: String, CaseIterable {
 }
 
 public func netegramSetNavTabHidden(_ tab: NetegramNavTab, hidden: Bool) {
-    var values = UserDefaults.standard.stringArray(forKey: netegramHiddenNavTabsKey) ?? []
+    var values = NGStore.stringArray(forKey: netegramHiddenNavTabsKey) ?? []
     if hidden {
         if !values.contains(tab.rawValue) {
             values.append(tab.rawValue)
@@ -76,8 +77,7 @@ public func netegramSetNavTabHidden(_ tab: NetegramNavTab, hidden: Bool) {
     } else {
         values.removeAll(where: { $0 == tab.rawValue })
     }
-    UserDefaults.standard.set(values, forKey: netegramHiddenNavTabsKey)
-    UserDefaults.standard.synchronize()
+    NGStore.setObject(values, forKey: netegramHiddenNavTabsKey)
 }
 
 /// Profile action buttons that can be hidden. Raw values are stored, so they must stay put.
@@ -119,12 +119,12 @@ public enum NetegramProfileButton: String, CaseIterable {
 /// The header lays out only the buttons it is given, so a hidden one simply is not added
 /// and the rest close the gap by themselves.
 public func netegramIsProfileButtonHidden(_ button: NetegramProfileButton) -> Bool {
-    let hidden = UserDefaults.standard.stringArray(forKey: netegramHiddenProfileButtonsKey) ?? []
+    let hidden = NGStore.stringArray(forKey: netegramHiddenProfileButtonsKey) ?? []
     return hidden.contains(button.rawValue)
 }
 
 public func netegramSetProfileButtonHidden(_ button: NetegramProfileButton, hidden: Bool) {
-    var values = UserDefaults.standard.stringArray(forKey: netegramHiddenProfileButtonsKey) ?? []
+    var values = NGStore.stringArray(forKey: netegramHiddenProfileButtonsKey) ?? []
     if hidden {
         if !values.contains(button.rawValue) {
             values.append(button.rawValue)
@@ -132,8 +132,7 @@ public func netegramSetProfileButtonHidden(_ button: NetegramProfileButton, hidd
     } else {
         values.removeAll(where: { $0 == button.rawValue })
     }
-    UserDefaults.standard.set(values, forKey: netegramHiddenProfileButtonsKey)
-    UserDefaults.standard.synchronize()
+    NGStore.setObject(values, forKey: netegramHiddenProfileButtonsKey)
 }
 
 public struct NetegramLookSettings: Equatable {
@@ -163,29 +162,32 @@ public final class NetegramLookPreferences {
         self.promise = ValuePromise(NetegramLookPreferences.current(), ignoreRepeated: true)
     }
 
+    /// Re-reads the store and pushes it out. Used after an import or a reset, where every
+    /// value changed at once without going through any of the setters.
+    public func republish() {
+        self.promise.set(NetegramLookPreferences.current())
+    }
+
     public static func current() -> NetegramLookSettings {
-        let defaults = UserDefaults.standard
         return NetegramLookSettings(
-            contextRedesign: defaults.bool(forKey: netegramContextRedesignKey),
-            roundProfileButtons: defaults.bool(forKey: netegramRoundProfileButtonsKey),
-            hiddenProfileButtons: defaults.stringArray(forKey: netegramHiddenProfileButtonsKey) ?? [],
-            hiddenNavTabs: defaults.stringArray(forKey: netegramHiddenNavTabsKey) ?? [],
-            navBarWidth: defaults.object(forKey: netegramNavBarWidthKey) as? Int ?? 100,
-            navBarHeight: defaults.object(forKey: netegramNavBarHeightKey) as? Int ?? 100
+            contextRedesign: NGStore.bool(forKey: netegramContextRedesignKey),
+            roundProfileButtons: NGStore.bool(forKey: netegramRoundProfileButtonsKey),
+            hiddenProfileButtons: NGStore.stringArray(forKey: netegramHiddenProfileButtonsKey) ?? [],
+            hiddenNavTabs: NGStore.stringArray(forKey: netegramHiddenNavTabsKey) ?? [],
+            navBarWidth: NGStore.object(forKey: netegramNavBarWidthKey) as? Int ?? 100,
+            navBarHeight: NGStore.object(forKey: netegramNavBarHeightKey) as? Int ?? 100
         )
     }
 
     /// Clamped on write as well as on read: the bar has to stay reachable whatever ends up in
     /// the store.
     public func setNavBarWidth(_ percent: Int) {
-        UserDefaults.standard.set(max(50, min(150, percent)), forKey: netegramNavBarWidthKey)
-        UserDefaults.standard.synchronize()
+        NGStore.setObject(max(50, min(150, percent)), forKey: netegramNavBarWidthKey)
         self.promise.set(NetegramLookPreferences.current())
     }
 
     public func setNavBarHeight(_ percent: Int) {
-        UserDefaults.standard.set(max(50, min(150, percent)), forKey: netegramNavBarHeightKey)
-        UserDefaults.standard.synchronize()
+        NGStore.setObject(max(50, min(150, percent)), forKey: netegramNavBarHeightKey)
         self.promise.set(NetegramLookPreferences.current())
     }
 
@@ -195,8 +197,7 @@ public final class NetegramLookPreferences {
     }
 
     public func setRoundProfileButtons(_ value: Bool) {
-        UserDefaults.standard.set(value, forKey: netegramRoundProfileButtonsKey)
-        UserDefaults.standard.synchronize()
+        NGStore.setObject(value, forKey: netegramRoundProfileButtonsKey)
         self.promise.set(NetegramLookPreferences.current())
     }
 
@@ -210,8 +211,7 @@ public final class NetegramLookPreferences {
     }
 
     public func setContextRedesign(_ value: Bool) {
-        UserDefaults.standard.set(value, forKey: netegramContextRedesignKey)
-        UserDefaults.standard.synchronize()
+        NGStore.setObject(value, forKey: netegramContextRedesignKey)
         self.promise.set(NetegramLookPreferences.current())
     }
 }

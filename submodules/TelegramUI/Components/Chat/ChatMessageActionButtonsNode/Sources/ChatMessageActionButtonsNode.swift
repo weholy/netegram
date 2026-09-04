@@ -1,4 +1,5 @@
 import Foundation
+import NetegramStore
 import UIKit
 import AsyncDisplayKit
 import TelegramCore
@@ -79,7 +80,7 @@ private final class NetegramInlineButtonGlassState {
     private init() {
         self.reload()
         NotificationCenter.default.addObserver(
-            forName: UserDefaults.didChangeNotification,
+            forName: NGStore.didChangeNotification,
             object: nil,
             queue: .main,
             using: { [weak self] _ in
@@ -89,7 +90,7 @@ private final class NetegramInlineButtonGlassState {
     }
 
     private func reload() {
-        self.enabled = UserDefaults.standard.bool(forKey: "netegram.liquidGlass.inlineButtons")
+        self.enabled = NGStore.bool(forKey: "netegram.liquidGlass.inlineButtons")
     }
 }
 

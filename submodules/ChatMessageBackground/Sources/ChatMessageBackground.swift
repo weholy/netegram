@@ -1,4 +1,5 @@
 import Foundation
+import NetegramStore
 import UIKit
 import AsyncDisplayKit
 import Display
@@ -72,7 +73,7 @@ private final class NetegramBubbleGlassState {
     private init() {
         self.reload()
         NotificationCenter.default.addObserver(
-            forName: UserDefaults.didChangeNotification,
+            forName: NGStore.didChangeNotification,
             object: nil,
             queue: .main,
             using: { [weak self] _ in
@@ -82,12 +83,19 @@ private final class NetegramBubbleGlassState {
     }
 
     private func reload() {
-        self.enabled = UserDefaults.standard.bool(forKey: "netegram.liquidGlass.messages")
+        self.enabled = NGStore.bool(forKey: "netegram.liquidGlass.messages")
     }
 }
 
 public class ChatMessageBackground: ASDisplayNode {
-    public weak var backdropNode: ChatMessageBubbleBackdrop?
+    /// Assigned by the bubble, and reassigned whenever the bubble is handed a rebuilt one —
+    /// which is what returning from the gallery does. A fresh backdrop arrives visible, so the
+    /// glass has to be re-asserted the moment it lands rather than at the next layout pass.
+    public weak var backdropNode: ChatMessageBubbleBackdrop? {
+        didSet {
+            self.applyNetegramGlassVisibility()
+        }
+    }
 
     /// Sits under the bubble artwork so UIGlassEffect refracts the wallpaper behind it.
     /// Only rounded rectangles are supported, so bubbles lose their tail while it is on.
@@ -161,8 +169,13 @@ public class ChatMessageBackground: ASDisplayNode {
     /// Split out of the layout pass because it has to run at other moments too: the artwork
     /// view is created lazily and is born visible, and returning from the gallery hands the
     /// bubble a rebuilt backdrop. Both happen without a layout, and until the next one the
-    /// solid fill sits on top of the glass — which is exactly how the effect used to vanish
-    /// after opening a photo.
+    /// solid fill sits on top of the glass — which is how the effect used to vanish after
+    /// opening a photo and only come back once the list was scrolled.
+    ///
+    /// Asserted from five places rather than one because none of them covers the others:
+    /// `didLoad` (the artwork view is born visible), both `updateLayout`s, `setType` (new
+    /// artwork), `backdropNode.didSet` (a rebuilt backdrop), and `layout()` below, which is
+    /// the backstop for anything that unhides these without going through any of them.
     func applyNetegramGlassVisibility() {
         guard self.glassView != nil else {
             return
@@ -170,6 +183,23 @@ public class ChatMessageBackground: ASDisplayNode {
         self.imageView?.isHidden = true
         self.outlineImageNode.isHidden = true
         self.backdropNode?.isHidden = true
+    }
+
+    /// Runs on every UIKit layout pass of this node's view, including the one the gallery's
+    /// dismissal transition triggers. Three boolean writes, only while the glass is actually
+    /// up, so the cost of making this unconditional is nothing.
+    override public func layout() {
+        super.layout()
+
+        self.applyNetegramGlassVisibility()
+    }
+
+    /// Coming back on screen after the gallery covered the chat. The node may have been
+    /// rebuilt while it was away, in which case nothing else has re-asserted the glass yet.
+    override public func didEnterHierarchy() {
+        super.didEnterHierarchy()
+
+        self.applyNetegramGlassVisibility()
     }
 
     /// Puts a glass layer under the bubble and hides everything opaque above it, so what shows

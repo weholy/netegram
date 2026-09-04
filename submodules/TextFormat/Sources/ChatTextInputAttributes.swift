@@ -1067,6 +1067,11 @@ public func refreshChatTextInputTypingAttributes(_ textView: UITextView, textCol
             }
         }
     }
+
+    // Netegram: the style chosen in Settings > Netegram > Автоформат, unioned in after the
+    // attributes inherited from the character before the cursor so a manual format still wins.
+    NetegramAutoFormat.applyToTypingAttributes(&filteredAttributes)
+
     textView.typingAttributes = filteredAttributes
 }
 
@@ -1092,6 +1097,11 @@ public func refreshChatTextInputTypingAttributes(_ textView: UITextView, theme: 
             }
         }
     }
+
+    // Netegram: the style chosen in Settings > Netegram > Автоформат, unioned in after the
+    // attributes inherited from the character before the cursor so a manual format still wins.
+    NetegramAutoFormat.applyToTypingAttributes(&filteredAttributes)
+
     textView.typingAttributes = filteredAttributes
 }
 

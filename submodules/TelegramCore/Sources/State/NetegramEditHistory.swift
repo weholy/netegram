@@ -1,5 +1,6 @@
 import Foundation
 import Postbox
+import NetegramStore
 
 /// Netegram: previous versions of edited messages, remembered by this client.
 ///
@@ -25,24 +26,60 @@ private let maximumTrackedMessages = 300
 private let maximumVersionsPerMessage = 10
 
 public enum NetegramEditHistory {
+    /// Its own file in the shared container, not a settings key.
+    ///
+    /// Written whenever an incoming edit is applied, which happens in the notification service
+    /// as well as the app, so it has to be somewhere both processes can reach. Keeping it out
+    /// of the settings document also means a stream of edits does not rewrite the switches.
+    private static let lock = NSLock()
+    private static var cache: [String: [NetegramEditVersion]]?
+
+    private static var fileUrl: URL? {
+        guard let directory = NGStore.storageDirectory() else {
+            return nil
+        }
+        return URL(fileURLWithPath: directory).appendingPathComponent("editHistory.json")
+    }
+
     /// Stable across launches, unlike the message's own stable id.
     private static func storageKey(_ id: MessageId) -> String {
         return "\(id.peerId.toInt64()):\(id.namespace):\(id.id)"
     }
 
+    /// Call with the lock held.
     private static func load() -> [String: [NetegramEditVersion]] {
-        guard let data = UserDefaults.standard.data(forKey: editHistoryKey) else {
-            return [:]
+        if let cache = NetegramEditHistory.cache {
+            return cache
         }
-        return (try? JSONDecoder().decode([String: [NetegramEditVersion]].self, from: data)) ?? [:]
+
+        var loaded: [String: [NetegramEditVersion]] = [:]
+        if let fileUrl = NetegramEditHistory.fileUrl, let data = try? Data(contentsOf: fileUrl) {
+            loaded = (try? JSONDecoder().decode([String: [NetegramEditVersion]].self, from: data)) ?? [:]
+        }
+        // Anything recorded before this moved out of the preferences domain. Read once so an
+        // update does not look like the history was wiped; it is rewritten to the file below.
+        if loaded.isEmpty, let legacy = UserDefaults.standard.data(forKey: editHistoryKey) {
+            loaded = (try? JSONDecoder().decode([String: [NetegramEditVersion]].self, from: legacy)) ?? [:]
+            if !loaded.isEmpty {
+                NetegramEditHistory.write(loaded)
+            }
+        }
+
+        NetegramEditHistory.cache = loaded
+        return loaded
     }
 
+    /// Call with the lock held.
     private static func save(_ value: [String: [NetegramEditVersion]]) {
-        guard let data = try? JSONEncoder().encode(value) else {
+        NetegramEditHistory.cache = value
+        NetegramEditHistory.write(value)
+    }
+
+    private static func write(_ value: [String: [NetegramEditVersion]]) {
+        guard let fileUrl = NetegramEditHistory.fileUrl, let data = try? JSONEncoder().encode(value) else {
             return
         }
-        UserDefaults.standard.set(data, forKey: editHistoryKey)
-        UserDefaults.standard.synchronize()
+        try? data.write(to: fileUrl, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
     }
 
     /// Records the text a message had before the edit that is about to be applied.
@@ -53,6 +90,9 @@ public enum NetegramEditHistory {
         guard previousText != newText, !previousText.isEmpty else {
             return
         }
+
+        NetegramEditHistory.lock.lock()
+        defer { NetegramEditHistory.lock.unlock() }
 
         var storage = self.load()
         let key = self.storageKey(id)
@@ -80,6 +120,9 @@ public enum NetegramEditHistory {
 
     /// Oldest first. Empty when this device never saw the message change.
     public static func versions(id: MessageId) -> [NetegramEditVersion] {
+        NetegramEditHistory.lock.lock()
+        defer { NetegramEditHistory.lock.unlock() }
+
         return self.load()[self.storageKey(id)] ?? []
     }
 }

@@ -9013,7 +9013,17 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
             if commit || !isScheduledMessages {
                 self.commitPurposefulAction()
                 
-                let _ = (enqueueMessages(account: self.context.account, peerId: peerId, messages: self.transformEnqueueMessages(messages, postpone: postpone))
+                // Netegram: a reply to a message the sender took back carries the deleted text
+                // in a blockquote instead of a reply link the recipient's client cannot follow.
+                // Applied here, at the single funnel every outgoing message goes through, so
+                // the composer and every attachment path get it without knowing about it.
+                let _ = (netegramTransformDeletedReplies(postbox: self.context.account.postbox, messages: self.transformEnqueueMessages(messages, postpone: postpone))
+                |> mapToSignal { [weak self] messages -> Signal<[MessageId?], NoError> in
+                    guard let self else {
+                        return .complete()
+                    }
+                    return enqueueMessages(account: self.context.account, peerId: peerId, messages: messages)
+                }
                 |> deliverOnMainQueue).startStandalone(next: { [weak self] _ in
                     if let strongSelf = self, strongSelf.presentationInterfaceState.subject != .scheduledMessages {
                         strongSelf.chatDisplayNode.historyNode.scrollToEndOfHistory()

@@ -1,4 +1,5 @@
 import Foundation
+import NetegramStore
 import UIKit
 import Display
 import SwiftSignalKit
@@ -15,14 +16,18 @@ private final class NetegramSettingsControllerArguments {
     let openLiquidGlass: () -> Void
     let openGhost: () -> Void
     let openLocalFeatures: () -> Void
+    let openAutoFormat: () -> Void
+    let openFakeActivity: () -> Void
     let openTransfer: () -> Void
 
-    init(openHideButtons: @escaping () -> Void, openNavBar: @escaping () -> Void, openLiquidGlass: @escaping () -> Void, openGhost: @escaping () -> Void, openLocalFeatures: @escaping () -> Void, openTransfer: @escaping () -> Void) {
+    init(openHideButtons: @escaping () -> Void, openNavBar: @escaping () -> Void, openLiquidGlass: @escaping () -> Void, openGhost: @escaping () -> Void, openLocalFeatures: @escaping () -> Void, openAutoFormat: @escaping () -> Void, openFakeActivity: @escaping () -> Void, openTransfer: @escaping () -> Void) {
         self.openHideButtons = openHideButtons
         self.openNavBar = openNavBar
         self.openLiquidGlass = openLiquidGlass
         self.openGhost = openGhost
         self.openLocalFeatures = openLocalFeatures
+        self.openAutoFormat = openAutoFormat
+        self.openFakeActivity = openFakeActivity
         self.openTransfer = openTransfer
     }
 }
@@ -36,6 +41,8 @@ private enum NetegramSettingsSection: Int32 {
     case liquidGlass
     case ghost
     case localFeatures
+    case autoFormat
+    case fakeActivity
     case transfer
 }
 
@@ -46,6 +53,8 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
     case liquidGlass
     case ghost
     case localFeatures
+    case autoFormat
+    case fakeActivity
     case transfer
 
     var section: ItemListSectionId {
@@ -62,6 +71,10 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
             return NetegramSettingsSection.ghost.rawValue
         case .localFeatures:
             return NetegramSettingsSection.localFeatures.rawValue
+        case .autoFormat:
+            return NetegramSettingsSection.autoFormat.rawValue
+        case .fakeActivity:
+            return NetegramSettingsSection.fakeActivity.rawValue
         case .transfer:
             return NetegramSettingsSection.transfer.rawValue
         }
@@ -81,6 +94,10 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
             return 6
         case .localFeatures:
             return 7
+        case .autoFormat:
+            return 8
+        case .fakeActivity:
+            return 2
         case .transfer:
             return 9
         }
@@ -117,6 +134,14 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
             return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramLocalStrings.localFeatures, label: "", additionalDetailLabel: "Премиум, звёзды, значки", sectionId: self.section, style: .blocks, action: {
                 arguments.openLocalFeatures()
             })
+        case .autoFormat:
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramAutoFormatStrings.title, label: "", additionalDetailLabel: NetegramAutoFormatStrings.subtitle, sectionId: self.section, style: .blocks, action: {
+                arguments.openAutoFormat()
+            })
+        case .fakeActivity:
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramFakeStrings.title, label: "", additionalDetailLabel: NetegramFakeStrings.subtitle, sectionId: self.section, style: .blocks, action: {
+                arguments.openFakeActivity()
+            })
         case .transfer:
             return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramTransferStrings.title, label: "", additionalDetailLabel: NetegramTransferStrings.subtitle, sectionId: self.section, style: .blocks, action: {
                 arguments.openTransfer()
@@ -134,7 +159,7 @@ private func netegramSettingsEntries(isOwner: Bool) -> [NetegramSettingsEntry] {
     guard isOwner else {
         return netegramPublicEntries
     }
-    return [.logoHeader(true), .ghost, .liquidGlass, .hideButtons, .navBar, .localFeatures, .transfer]
+    return [.logoHeader(true), .fakeActivity, .ghost, .liquidGlass, .hideButtons, .navBar, .localFeatures, .autoFormat, .transfer]
 }
 
 /// Netegram: the account this build belongs to.
@@ -166,15 +191,13 @@ private let netegramOwnerPhone = "79809334541"
 /// Retires the three removed screens' settings, one time, so nobody who had already turned one
 /// on is left stuck with it permanently active and no menu path left to switch it back off.
 private func netegramRetireRemovedScreens() {
-    let defaults = UserDefaults.standard
-    guard !defaults.bool(forKey: "netegram.removedScreensRetired") else {
+    guard !NGStore.bool(forKey: "netegram.removedScreensRetired") else {
         return
     }
-    defaults.set(false, forKey: netegramContextRedesignKey)
-    defaults.set(false, forKey: netegramRoundProfileButtonsKey)
-    defaults.set(0, forKey: "netegram.background.mode")
-    defaults.set(true, forKey: "netegram.removedScreensRetired")
-    defaults.synchronize()
+    NGStore.setObject(false, forKey: netegramContextRedesignKey)
+    NGStore.setObject(false, forKey: netegramRoundProfileButtonsKey)
+    NGStore.setObject(0, forKey: "netegram.background.mode")
+    NGStore.setObject(true, forKey: "netegram.removedScreensRetired")
 }
 
 public func netegramSettingsController(context: AccountContext) -> ViewController {
@@ -192,6 +215,10 @@ public func netegramSettingsController(context: AccountContext) -> ViewControlle
         pushControllerImpl?(netegramGhostController(context: context))
     }, openLocalFeatures: {
         pushControllerImpl?(netegramLocalFeaturesController(context: context))
+    }, openAutoFormat: {
+        pushControllerImpl?(netegramAutoFormatController(context: context))
+    }, openFakeActivity: {
+        pushControllerImpl?(netegramFakeActivityController(context: context))
     }, openTransfer: {
         pushControllerImpl?(netegramTransferController(context: context))
     })

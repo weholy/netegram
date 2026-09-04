@@ -1,4 +1,5 @@
 import Foundation
+import NetegramStore
 import UIKit
 import Display
 import AsyncDisplayKit
@@ -86,7 +87,6 @@ public final class TelegramRootController: NavigationController, TelegramRootCon
     
     private var detailsPlaceholderNode: DetailsChatPlaceholderNode?
     
-    private var applicationInFocusDisposable: Disposable?
     private var storyUploadEventsDisposable: Disposable?
     
     override public var minimizedContainer: MinimizedContainer? {
@@ -120,12 +120,6 @@ public final class TelegramRootController: NavigationController, TelegramRootCon
         })
         
         if context.sharedContext.applicationBindings.isMainApp {
-            self.applicationInFocusDisposable = (context.sharedContext.applicationBindings.applicationIsActive
-            |> distinctUntilChanged
-            |> deliverOn(Queue.mainQueue())).startStrict(next: { value in
-                context.sharedContext.mainWindow?.setForceBadgeHidden(!value)
-            })
-            
             self.storyUploadEventsDisposable = (context.engine.messages.allStoriesUploadEvents()
             |> deliverOnMainQueue).startStrict(next: { [weak self] event in
                 guard let self else {
@@ -144,7 +138,6 @@ public final class TelegramRootController: NavigationController, TelegramRootCon
     deinit {
         self.permissionsDisposable?.dispose()
         self.presentationDataDisposable?.dispose()
-        self.applicationInFocusDisposable?.dispose()
         self.storyUploadEventsDisposable?.dispose()
     }
     
@@ -241,7 +234,7 @@ public final class TelegramRootController: NavigationController, TelegramRootCon
                 
         // Netegram: drop the tabs the user chose to hide. The tab bar shows only what it is
         // given, so the remaining tabs close the gap on their own.
-        let hiddenTabs = UserDefaults.standard.stringArray(forKey: "netegram.look.hiddenNavTabs") ?? []
+        let hiddenTabs = NGStore.stringArray(forKey: "netegram.look.hiddenNavTabs") ?? []
         if !hiddenTabs.isEmpty {
             if hiddenTabs.contains("contacts") {
                 controllers.removeAll(where: { $0 === contactsController })
