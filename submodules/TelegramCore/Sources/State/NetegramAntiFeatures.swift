@@ -96,7 +96,7 @@ public enum NetegramDeletedMessages {
     }
 
     public static func contains(_ id: MessageId) -> Bool {
-        return NetegramDeletedMessages.store.contains(NetegramDeletedMessages.key(id))
+        return NetegramDeletedMessages.store.containsObject(NetegramDeletedMessages.key(id))
     }
 
     /// Called when the app steps back, so a burst of marks recorded a moment earlier is on
