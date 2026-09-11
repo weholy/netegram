@@ -9017,7 +9017,10 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                 // in a blockquote instead of a reply link the recipient's client cannot follow.
                 // Applied here, at the single funnel every outgoing message goes through, so
                 // the composer and every attachment path get it without knowing about it.
-                let _ = (netegramTransformDeletedReplies(postbox: self.context.account.postbox, messages: self.transformEnqueueMessages(messages, postpone: postpone))
+                //
+                // Auto-format goes first, so its style covers only what the user wrote and not
+                // the quoted text the deleted-reply step puts in front of it.
+                let _ = (netegramTransformDeletedReplies(postbox: self.context.account.postbox, messages: netegramApplyAutoFormat(messages: self.transformEnqueueMessages(messages, postpone: postpone)))
                 |> mapToSignal { [weak self] messages -> Signal<[MessageId?], NoError> in
                     guard let self else {
                         return .complete()

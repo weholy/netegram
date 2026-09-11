@@ -12,9 +12,9 @@ import TextFormat
 
 public enum NetegramAutoFormatStrings {
     public static let title = "Автоформат"
-    public static let subtitle = "Каким шрифтом набирается текст"
-    public static let header = "СТИЛЬ ПО УМОЛЧАНИЮ"
-    public static let footer = "Выбранные стили применяются ко всему, что вы печатаете в чатах и подписях, — сразу в поле ввода, а не только в отправленном сообщении. Форматирование, поставленное вручную, остаётся как есть. Стили складываются: жирный и курсив вместе дают жирный курсив.\n\nЦитата и блок кода сюда не входят — это не шрифт, а форма блока."
+    public static let subtitle = "Стиль текста по умолчанию"
+    public static let header = "СТИЛЬ"
+    public static let footer = "Всё, что вы пишете, уйдёт этим стилем. Выбрать можно только один."
 }
 
 private final class NetegramAutoFormatArguments {
@@ -25,8 +25,7 @@ private final class NetegramAutoFormatArguments {
     }
 }
 
-/// One block for the whole list rather than a block per row: these are alternatives within one
-/// decision — how your text looks — and reading them as a group is the point.
+/// One block for the whole list: these are alternatives within one decision.
 private enum NetegramAutoFormatEntry: ItemListNodeEntry {
     case header
     case style(index: Int, style: NetegramTextStyle, value: Bool)
@@ -67,14 +66,17 @@ private enum NetegramAutoFormatEntry: ItemListNodeEntry {
 }
 
 public func netegramAutoFormatController(context: AccountContext) -> ViewController {
-    // The styles live in TextFormat, which has no promise of its own — it is read from layout
-    // paths and has no business owning a signal. The screen keeps its own, seeded from the
-    // store and pushed on every toggle.
-    let statePromise = ValuePromise<[NetegramTextStyle]>(NetegramAutoFormat.styles, ignoreRepeated: true)
+    let statePromise = ValuePromise<NetegramTextStyle?>(NetegramAutoFormat.style, ignoreRepeated: true)
 
+    // Switches that behave like a choice: turning one on picks it and turns the rest off,
+    // turning the chosen one off leaves nothing chosen.
     let arguments = NetegramAutoFormatArguments(updateStyle: { style, value in
-        NetegramAutoFormat.setEnabled(value, style: style)
-        statePromise.set(NetegramAutoFormat.styles)
+        if value {
+            NetegramAutoFormat.setStyle(style)
+        } else if NetegramAutoFormat.style == style {
+            NetegramAutoFormat.setStyle(nil)
+        }
+        statePromise.set(NetegramAutoFormat.style)
     })
 
     let signal = combineLatest(queue: .mainQueue(),
@@ -82,10 +84,10 @@ public func netegramAutoFormatController(context: AccountContext) -> ViewControl
         statePromise.get()
     )
     |> deliverOnMainQueue
-    |> map { presentationData, enabled -> (ItemListControllerState, (ItemListNodeState, Any)) in
+    |> map { presentationData, selected -> (ItemListControllerState, (ItemListNodeState, Any)) in
         var entries: [NetegramAutoFormatEntry] = [.header]
         for (index, style) in NetegramTextStyle.allCases.enumerated() {
-            entries.append(.style(index: index, style: style, value: enabled.contains(style)))
+            entries.append(.style(index: index, style: style, value: selected == style))
         }
         entries.append(.footer)
 

@@ -820,6 +820,10 @@ public func refreshChatTextInputAttributes(context: AnyObject, textView: UITextV
     var text: NSString = initialAttributedText.string as NSString
     var fullRange = NSRange(location: 0, length: initialAttributedText.length)
     var attributedText = NSMutableAttributedString(attributedString: stateAttributedStringForText(initialAttributedText))
+    // Netegram: the auto-format style over the whole text, before anything is rendered from
+    // it. Once it is in the text the passes below keep it, and the next refresh finds nothing
+    // to change.
+    NetegramAutoFormat.applyToStateText(attributedText)
     refreshTextMentions(text: text, initialAttributedText: initialAttributedText, attributedText: attributedText, fullRange: fullRange)
     
     var resultAttributedText = textAttributedStringForStateText(context: context, stateText: attributedText, fontSize: baseFontSize, textColor: primaryTextColor, accentTextColor: accentTextColor, writingDirection: writingDirection, spoilersRevealed: spoilersRevealed, availableEmojis: availableEmojis, emojiViewProvider: emojiViewProvider, makeCollapsedQuoteAttachment: makeCollapsedQuoteAttachment)
