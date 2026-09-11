@@ -7,19 +7,19 @@ import NetegramStore
 
 public enum NetegramFakeStrings {
     public static let title = "Фейк-активность"
-    public static let subtitle = "Что о вас видят выбранные люди"
+    public static let subtitle = "Печатает, записывает, читает"
 
     public static let activityHeader = "ПОКАЗЫВАТЬ АКТИВНОСТЬ"
     public static let activityEnabled = "Включить"
     public static let activityKind = "Действие"
     public static let activityPeers = "Кому показывать"
     public static let activityPeersEmpty = "никому"
-    public static let activityFooter = "Выбранные чаты постоянно видят, что вы этим заняты, — даже когда приложение закрыто, пока оно остаётся в памяти. Работает только в личных чатах и группах: каналу показывать нечего.\n\nРежим призрака сильнее: если то же самое действие скрыто там, оно не уйдёт и отсюда."
+    public static let activityFooter = "Выбранные чаты видят, что вы печатаете или что-то отправляете. Работает, пока приложение открыто."
 
     public static let readHeader = "ЧИТАТЬ БЕЗ ОТКРЫТИЯ"
     public static let readEnabled = "Включить"
     public static let readPeers = "Чьи сообщения"
-    public static let readFooter = "Сообщения из выбранных чатов помечаются прочитанными сразу, как приходят. Вы их не открывали — галочки собеседник всё равно увидит.\n\nЕсли в режиме призрака выключены отчёты о прочтении, галочек не будет: там решение принимается ниже."
+    public static let readFooter = "Сообщения из выбранных чатов сразу становятся прочитанными."
 
     public static let chooseTitle = "Выберите чаты"
     public static let choosePlaceholder = "Поиск"
@@ -117,6 +117,10 @@ private let fakeActivityKindKey = "netegram.fake.activityKind"
 private let fakeActivityPeersKey = "netegram.fake.activityPeers"
 private let fakeReadEnabledKey = "netegram.fake.readEnabled"
 private let fakeReadPeersKey = "netegram.fake.readPeers"
+/// The same chats as bare Telegram ids, the form MTProtoKit sees in a request. Mirrored in
+/// MTNetegramGhost, which lets these through when ghost mode would otherwise hide them.
+private let fakeActivityRawIdsKey = "netegram.fake.activityRawIds"
+private let fakeReadRawIdsKey = "netegram.fake.readRawIds"
 
 /// Peer ids are stored as decimal strings rather than numbers: they are full 64-bit values,
 /// and JSON's number type is a double, which silently rounds anything past 2^53.
@@ -126,6 +130,11 @@ private func netegramDecodePeerIds(_ key: String) -> [Int64] {
 
 private func netegramEncodePeerIds(_ values: [Int64], forKey key: String) {
     NGStore.setObject(values.map { "\($0)" }, forKey: key)
+}
+
+/// A peer id packs the chat kind in with the number; a request carries only the number.
+private func netegramEncodeRawIds(_ values: [Int64], forKey key: String) {
+    NGStore.setObject(values.map { "\(PeerId($0).id._internalGetInt64Value())" }, forKey: key)
 }
 
 public final class NetegramFakePreferences {
@@ -170,6 +179,7 @@ public final class NetegramFakePreferences {
 
     public func setActivityPeers(_ value: [Int64]) {
         netegramEncodePeerIds(value, forKey: fakeActivityPeersKey)
+        netegramEncodeRawIds(value, forKey: fakeActivityRawIdsKey)
         self.republish()
     }
 
@@ -180,6 +190,7 @@ public final class NetegramFakePreferences {
 
     public func setReadPeers(_ value: [Int64]) {
         netegramEncodePeerIds(value, forKey: fakeReadPeersKey)
+        netegramEncodeRawIds(value, forKey: fakeReadRawIdsKey)
         self.republish()
     }
 }
@@ -237,6 +248,11 @@ public final class NetegramFakeActivityManager {
     }
 
     private func apply(_ settings: NetegramFakeSettings) {
+        // Lists chosen before the bare ids existed get them here. A write that changes nothing
+        // is ignored by the store, so once they are in place this costs nothing.
+        netegramEncodeRawIds(settings.activityPeers, forKey: fakeActivityRawIdsKey)
+        netegramEncodeRawIds(settings.readPeers, forKey: fakeReadRawIdsKey)
+
         guard let context = self.context else {
             return
         }

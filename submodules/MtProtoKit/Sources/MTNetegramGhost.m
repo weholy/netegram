@@ -271,6 +271,65 @@ static NSString *MTGhostKeyForAction(int32_t actionId) {
     return nil;
 }
 
+/// The sendMessageAction a fake-activity kind goes out as. Mirrors NetegramFakeActivityKind
+/// (SettingsUI) and the PeerInputActivity each kind maps to there.
+static int32_t MTGhostActionForFakeKind(NSString *kind) {
+    if ([kind isEqualToString:@"typing"]) return MTGhostActionTyping;
+    if ([kind isEqualToString:@"recordingVoice"]) return MTGhostActionRecordAudio;
+    if ([kind isEqualToString:@"uploadingVoice"]) return MTGhostActionUploadDocument;
+    if ([kind isEqualToString:@"recordingRound"]) return MTGhostActionRecordRound;
+    if ([kind isEqualToString:@"uploadingRound"]) return MTGhostActionUploadRound;
+    if ([kind isEqualToString:@"uploadingPhoto"]) return MTGhostActionUploadPhoto;
+    if ([kind isEqualToString:@"uploadingVideo"]) return MTGhostActionUploadVideo;
+    if ([kind isEqualToString:@"uploadingFile"]) return MTGhostActionUploadDocument;
+    if ([kind isEqualToString:@"choosingSticker"]) return MTGhostActionChooseSticker;
+    if ([kind isEqualToString:@"playingGame"]) return MTGhostActionGamePlay;
+    return 0;
+}
+
+/// True when this setTyping is the fake activity the user asked for, which ghost mode must not
+/// swallow: hiding "typing" everywhere and showing it to one chosen person on purpose are both
+/// the user's instructions, and the specific one wins.
+///
+/// Matched on the chat and the exact action, so a real action of another kind to the same
+/// person is still hidden as ghost mode says. Ids are the bare Telegram ids SettingsUI writes
+/// next to the peer list.
+static BOOL MTGhostIsFakeActivity(NSString *peerKey, int32_t actionId) {
+    if (peerKey == nil || ![NGStore boolForKey:@"netegram.fake.activityEnabled"]) {
+        return NO;
+    }
+    NSString *kind = [NGStore stringForKey:@"netegram.fake.activityKind"] ?: @"typing";
+    if (MTGhostActionForFakeKind(kind) != actionId) {
+        return NO;
+    }
+    return [[NGStore stringArrayForKey:@"netegram.fake.activityRawIds"] containsObject:peerKey];
+}
+
+/// True when the chat is on the "read without opening" list, whose reads must reach the
+/// sender even while ghost mode hides read receipts elsewhere.
+static BOOL MTGhostIsFakeRead(NSString *peerKey) {
+    if (peerKey == nil || ![NGStore boolForKey:@"netegram.fake.readEnabled"]) {
+        return NO;
+    }
+    return [[NGStore stringArrayForKey:@"netegram.fake.readRawIds"] containsObject:peerKey];
+}
+
+/// channels.readHistory names its chat with an InputChannel rather than an InputPeer. Only the
+/// plain inputChannel#f35aec28 carries the id directly; anything else is left unmatched.
+static NSString *MTGhostChannelKey(NSData *payload) {
+    NSUInteger offset = 4;
+    int32_t constructor = 0;
+    if (!MTGhostReadInt32(payload, &offset, &constructor)) {
+        return nil;
+    }
+    if ((uint32_t)constructor != 0xf35aec28 || offset + 8 > payload.length) {
+        return nil;
+    }
+    int64_t channelId = 0;
+    [payload getBytes:&channelId range:NSMakeRange(offset, 8)];
+    return [NSString stringWithFormat:@"%lld", (long long)channelId];
+}
+
 /// account.updateStatus#6628562c offline:Bool
 ///
 /// The client sends offline=true when it stops being in the foreground and offline=false when
@@ -298,6 +357,8 @@ static BOOL MTGhostShouldBlockSetTyping(NSData *payload) {
     if (!MTGhostReadInt32(payload, &offset, &flags)) {
         return NO;
     }
+    NSUInteger peerOffset = offset;
+    NSString *peerKey = MTGhostPeerKey(payload, &peerOffset);
     if (!MTGhostSkipInputPeer(payload, &offset)) {
         return NO;
     }
@@ -306,6 +367,9 @@ static BOOL MTGhostShouldBlockSetTyping(NSData *payload) {
     }
     int32_t actionId = 0;
     if (!MTGhostReadInt32(payload, &offset, &actionId)) {
+        return NO;
+    }
+    if (MTGhostIsFakeActivity(peerKey, actionId)) {
         return NO;
     }
     NSString *key = MTGhostKeyForAction(actionId);
@@ -392,6 +456,10 @@ static NSInteger MTGhostSendGeneration = 0;
         if (!MTGhostFlag(@"netegram.ghost.readReceipts")) {
             return nil;
         }
+        NSUInteger peerOffset = 4; // messages.readHistory has no flags
+        if (MTGhostIsFakeRead(MTGhostPeerKey(payload, &peerOffset))) {
+            return nil;
+        }
         // Answering someone and then leaving their message on one tick is a stranger signal
         // than the tick itself, so acting in a chat lifts the block for that chat.
         if (MTGhostFlag(@"netegram.ghost.readOnAction") && MTGhostActedRecently(payload)) {
@@ -399,7 +467,16 @@ static NSInteger MTGhostSendGeneration = 0;
         }
         return MTGhostAffectedMessages();
     }
-    if (functionId == MTGhostChannelsReadHistory || functionId == MTGhostReadDiscussion) {
+    if (functionId == MTGhostChannelsReadHistory) {
+        if (!MTGhostFlag(@"netegram.ghost.readReceipts")) {
+            return nil;
+        }
+        if (MTGhostIsFakeRead(MTGhostChannelKey(payload))) {
+            return nil;
+        }
+        return MTGhostBoolTrue();
+    }
+    if (functionId == MTGhostReadDiscussion) {
         return MTGhostFlag(@"netegram.ghost.readReceipts") ? MTGhostBoolTrue() : nil;
     }
     if (functionId == MTGhostReadMentions) {

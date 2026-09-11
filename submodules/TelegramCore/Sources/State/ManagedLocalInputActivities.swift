@@ -157,7 +157,9 @@ private func requestActivity(postbox: Postbox, network: Network, accountPeerId: 
                     }
                 }
             }
-            if let _ = peer as? TelegramUser {
+            // Netegram: a chat picked for fake activity gets the action whatever its presence
+            // says; see netegramFakeActivityTargets.
+            if let _ = peer as? TelegramUser, !netegramFakeActivityTargets(peerId) {
                 if let presence = transaction.getPeerPresence(peerId: peerId) as? TelegramUserPresence {
                     switch presence.status {
                     case .none, .lastWeek, .lastMonth:

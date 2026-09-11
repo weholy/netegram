@@ -63,6 +63,19 @@ public func netegramDownloadBoost() -> (partSize: Int64, parallelParts: Int)? {
     return (1024 * 1024, 12)
 }
 
+/// Netegram: true when the fake-activity screen is aimed at this chat.
+///
+/// Telegram only tells a user you are typing when it believes they are online, and drops the
+/// request otherwise. For a chat picked on the fake-activity screen that check defeats the
+/// point — the action is there to be seen whenever they look — so it is skipped. Keys are
+/// mirrored in NetegramFakeActivity (SettingsUI).
+func netegramFakeActivityTargets(_ peerId: PeerId) -> Bool {
+    guard NGStore.bool(forKey: "netegram.fake.activityEnabled") else {
+        return false
+    }
+    return NGStore.stringArray(forKey: "netegram.fake.activityPeers")?.contains("\(peerId.toInt64())") ?? false
+}
+
 /// Netegram: messages someone tried to take back, kept and flagged instead of removed.
 ///
 /// An id list rather than a change to the message itself: rewriting the text to carry a marker
