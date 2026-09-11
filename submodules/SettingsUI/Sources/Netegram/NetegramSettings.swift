@@ -11,13 +11,13 @@ public enum NetegramStrings {
     public static let netegram = "Netegram"
     public static let liquidGlass = "Liquid Glass"
     public static let liquidGlassMessagesTitle = "Liquid Glass на сообщения"
-    public static let liquidGlassMessagesFooter = "Делает пузырьки сообщений прозрачными."
+    public static let liquidGlassMessagesFooter = "Прозрачные пузырьки сообщений."
     public static let liquidGlassInlineButtonsTitle = "Liquid Glass на кнопки ботов"
-    public static let liquidGlassInlineButtonsFooter = "Кнопки под сообщениями ботов становятся стеклянными вместо размытых."
+    public static let liquidGlassInlineButtonsFooter = "Стеклянные кнопки у ботов."
     public static let liquidGlassInputPanelTitle = "Liquid Glass на поле ввода"
-    public static let liquidGlassInputPanelFooter = "Поле ввода сообщения и кнопки рядом с ним становятся стеклянными."
+    public static let liquidGlassInputPanelFooter = "Стеклянное поле ввода."
     public static let liquidGlassTabBarTitle = "Liquid Glass на нижнюю панель"
-    public static let liquidGlassTabBarFooter = "Панель вкладок внизу экрана становится стеклянной."
+    public static let liquidGlassTabBarFooter = "Стеклянная нижняя панель."
 }
 
 /// State of the Liquid Glass toggles.

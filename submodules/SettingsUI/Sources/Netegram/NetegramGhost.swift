@@ -61,7 +61,7 @@ public enum NetegramGhostStrings {
 
     public static let deviceName = "Имя устройства"
     public static let deviceNamePlaceholder = "Как в системе"
-    public static let deviceNameFooter = "Имя, под которым это устройство видно в списке ваших сеансов. Пустое поле вернёт обычное."
+    public static let deviceNameFooter = "Так устройство называется в списке сеансов."
 
     public static let delayedSendSeconds = "Задержка"
 
@@ -91,7 +91,7 @@ public struct NetegramGhostRow {
 }
 
 public let netegramGhostRows: [NetegramGhostRow] = [
-    NetegramGhostRow(key: NetegramGhostKeys.alwaysOnline, title: "Всегда онлайн", footer: "Держит статус «в сети», даже когда вы закрыли приложение."),
+    NetegramGhostRow(key: NetegramGhostKeys.alwaysOnline, title: "Всегда онлайн", footer: "Вы в сети, даже когда приложение закрыто."),
     NetegramGhostRow(key: NetegramGhostKeys.hideOnline, title: "Онлайн-статус", footer: "Скрывает, что вы в сети."),
     NetegramGhostRow(key: NetegramGhostKeys.typing, title: "Набор текста", footer: "Скрывает, что вы печатаете."),
     NetegramGhostRow(key: NetegramGhostKeys.recordVoice, title: "Запись голосового", footer: "Скрывает, что вы записываете голосовое."),
@@ -107,25 +107,25 @@ public let netegramGhostRows: [NetegramGhostRow] = [
     NetegramGhostRow(key: NetegramGhostKeys.chooseContact, title: "Выбор контакта", footer: "Скрывает, что вы выбираете контакт."),
     NetegramGhostRow(key: NetegramGhostKeys.playGame, title: "Игра", footer: "Скрывает, что вы играете."),
     NetegramGhostRow(key: NetegramGhostKeys.speaking, title: "Голос в звонке", footer: "Скрывает, что вы говорите в групповом звонке."),
-    NetegramGhostRow(key: NetegramGhostKeys.emojiInteraction, title: "Анимации эмодзи", footer: "Не отправляет анимацию, когда вы нажимаете на эмодзи."),
-    NetegramGhostRow(key: NetegramGhostKeys.emojiSeen, title: "Просмотр анимаций", footer: "Скрывает, что вы посмотрели чужую анимацию эмодзи."),
+    NetegramGhostRow(key: NetegramGhostKeys.emojiInteraction, title: "Анимации эмодзи", footer: "Собеседник не видит анимацию эмодзи."),
+    NetegramGhostRow(key: NetegramGhostKeys.emojiSeen, title: "Просмотр анимаций", footer: "Не видно, что вы смотрели анимацию."),
     NetegramGhostRow(key: NetegramGhostKeys.readReceipts, title: "Прочтение сообщений", footer: "Галочки у собеседника остаются одинарными."),
-    NetegramGhostRow(key: NetegramGhostKeys.readMentions, title: "Прочтение упоминаний", footer: "Значок над @-упоминанием не гаснет для собеседника, пока вы его не прочитали по-настоящему."),
-    NetegramGhostRow(key: NetegramGhostKeys.readOnAction, title: "Читать при действиях", footer: "Сообщения отмечаются прочитанными, только когда вы ответили или поставили реакцию. Работает вместе с предыдущим пунктом."),
+    NetegramGhostRow(key: NetegramGhostKeys.readMentions, title: "Прочтение упоминаний", footer: "Упоминания не отмечаются прочитанными."),
+    NetegramGhostRow(key: NetegramGhostKeys.readOnAction, title: "Читать при действиях", footer: "Чат читается, только когда вы ответили или поставили реакцию."),
     NetegramGhostRow(key: NetegramGhostKeys.storyViews, title: "Просмотр историй", footer: "Вас не будет в списке зрителей."),
-    NetegramGhostRow(key: NetegramGhostKeys.viewOnce, title: "Одноразовые", footer: "Открывает одноразовые фото и голосовые, не сообщая отправителю."),
-    NetegramGhostRow(key: NetegramGhostKeys.screenshots, title: "Скриншоты", footer: "Не отправляет уведомление о снимке экрана в секретных чатах."),
-    NetegramGhostRow(key: NetegramGhostKeys.antiRevoke, title: "Не удалять удалённое", footer: "Сообщение, которое собеседник удалил, останется у вас с корзиной в начале."),
-    NetegramGhostRow(key: NetegramGhostKeys.antiEdit, title: "Не применять правки", footer: "Чужое сообщение останется таким, каким вы его прочитали."),
-    NetegramGhostRow(key: NetegramGhostKeys.antiAutoDelete, title: "Не удалять по таймеру", footer: "Исчезающие сообщения останутся после того, как их срок вышел."),
-    NetegramGhostRow(key: NetegramGhostKeys.allowSaving, title: "Сохранение из закрытых чатов", footer: "Разрешает сохранять и пересылать оттуда, где это запрещено."),
+    NetegramGhostRow(key: NetegramGhostKeys.viewOnce, title: "Одноразовые", footer: "Одноразовые медиа открываются тайно."),
+    NetegramGhostRow(key: NetegramGhostKeys.screenshots, title: "Скриншоты", footer: "Не сообщает о скриншотах в секретных чатах."),
+    NetegramGhostRow(key: NetegramGhostKeys.antiRevoke, title: "Не удалять удалённое", footer: "Удалённые сообщения остаются у вас."),
+    NetegramGhostRow(key: NetegramGhostKeys.antiEdit, title: "Не применять правки", footer: "Изменённые сообщения остаются как были."),
+    NetegramGhostRow(key: NetegramGhostKeys.antiAutoDelete, title: "Не удалять по таймеру", footer: "Исчезающие сообщения не исчезают."),
+    NetegramGhostRow(key: NetegramGhostKeys.allowSaving, title: "Сохранение из закрытых чатов", footer: "Сохранять и пересылать можно отовсюду."),
     NetegramGhostRow(key: NetegramGhostKeys.hideStories, title: "Скрыть истории", footer: "Убирает ленту историй из списка чатов."),
-    NetegramGhostRow(key: NetegramGhostKeys.confirmCalls, title: "Подтверждение звонков", footer: "Спрашивает подтверждение перед звонком, чтобы не позвонить случайно."),
-    NetegramGhostRow(key: NetegramGhostKeys.sendAsVoice, title: "Аудио как голосовое", footer: "Отправляет выбранные аудиофайлы голосовыми сообщениями."),
-    NetegramGhostRow(key: NetegramGhostKeys.fastDownload, title: "Ускорить загрузку", footer: "Качает файлы большими кусками. Быстрее, но сервер может временно ограничить скорость."),
+    NetegramGhostRow(key: NetegramGhostKeys.confirmCalls, title: "Подтверждение звонков", footer: "Спрашивает, прежде чем позвонить."),
+    NetegramGhostRow(key: NetegramGhostKeys.sendAsVoice, title: "Аудио как голосовое", footer: "Аудиофайлы уходят голосовыми."),
+    NetegramGhostRow(key: NetegramGhostKeys.fastDownload, title: "Ускорить загрузку", footer: "Файлы качаются быстрее."),
     NetegramGhostRow(key: NetegramGhostKeys.noAds, title: "Скрыть рекламу", footer: "Убирает спонсорские сообщения в каналах."),
     NetegramGhostRow(key: NetegramGhostKeys.delayedSend, title: "Отложенная отправка", footer: "Сообщение уходит не сразу — его можно отменить."),
-    NetegramGhostRow(key: NetegramGhostKeys.locationEnabled, title: "Подмена локации", footer: "Вместо настоящего местоположения будет выбранная точка.")
+    NetegramGhostRow(key: NetegramGhostKeys.locationEnabled, title: "Подмена локации", footer: "Вместо вашей геопозиции — выбранная точка.")
 ]
 
 public struct NetegramGhostSettings: Equatable {

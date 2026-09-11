@@ -17,16 +17,16 @@ public enum NetegramTransferStrings {
     public static let subtitle = "Экспорт, импорт, сброс"
 
     public static let export = "Экспортировать"
-    public static let exportFooter = "Сохраняет настройки Netegram в файл, чтобы перенести их на другое устройство или вернуться к ним после переустановки."
+    public static let exportFooter = "Сохраняет настройки Netegram в файл."
     public static let importTitle = "Импортировать"
-    public static let importFooter = "Читает такой файл и применяет настройки. Всё, чего в файле нет, остаётся как было."
+    public static let importFooter = "Загружает настройки из такого файла."
     public static let reset = "Сбросить всё"
-    public static let resetFooter = "Возвращает все настройки Netegram к исходным. Чаты, аккаунт и настройки самого Telegram не затрагиваются."
+    public static let resetFooter = "Возвращает настройки Netegram по умолчанию. Чаты и аккаунт не трогаются."
     public static let resetConfirm = "Сбросить все настройки Netegram?"
 
     public static let exported = "Настройки собраны"
-    public static let imported = "Настройки применены. Перезапустите Netegram, чтобы они встали везде."
-    public static let importFailed = "Не похоже на файл настроек Netegram."
+    public static let imported = "Настройки загружены. Перезапустите приложение."
+    public static let importFailed = "Это не файл настроек Netegram."
     public static let didReset = "Настройки сброшены. Перезапустите Netegram."
 }
 

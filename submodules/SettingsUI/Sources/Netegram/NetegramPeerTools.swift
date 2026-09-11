@@ -16,11 +16,11 @@ public enum NetegramPeerToolsStrings {
     public static let ratingStars = "Количество звёзд"
     public static let ratingLevel = "Уровень"
     public static let ratingAuto = "по звёздам"
-    public static let ratingFooter = "Рейтинг виден только вам. Уровень считается из количества звёзд, если не задан вручную."
+    public static let ratingFooter = "Рейтинг видите только вы."
     public static let usernameHeader = "ЮЗЕРНЕЙМ"
     public static let username = "Локальный юзернейм"
     public static let usernameReset = "Сбросить юзернейм"
-    public static let usernameFooter = "Заменяет юзернейм этого пользователя во всём клиенте. Видно только вам."
+    public static let usernameFooter = "Юзернейм меняется только у вас."
 }
 
 /// What the profile submenu can edit for a peer.

@@ -14,10 +14,10 @@ import PromptUI
 public enum NetegramLocalStrings {
     public static let localFeatures = "Локальные функции"
     public static let localPremiumTitle = "Локальный премиум"
-    public static let localPremiumFooter = "Премиум, виден только тебе."
+    public static let localPremiumFooter = "Премиум виден только вам."
     public static let localStars = "Локальные звёзды"
     public static let localUsernameTitle = "Локальный юзернейм"
-    public static let localUsernameFooter = "Изменяет юзернейм визуально."
+    public static let localUsernameFooter = "Юзернейм меняется только у вас на экране."
     public static let localUsernameField = "Юзернейм"
     public static let starsHeader = "Звёзды Telegram"
     public static let changeStarBalance = "Изменить баланс звёзд"
