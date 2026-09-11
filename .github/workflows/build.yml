@@ -12,6 +12,10 @@ jobs:
     # originally asked for has been retired by GitHub, so the job queued forever.
     runs-on: macos-26
 
+    # Publishing the IPA as a release asset has to create tags and releases.
+    permissions:
+      contents: write
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -148,14 +152,35 @@ jobs:
             find -L bazel-out -maxdepth 6 -name '*.app' -o -maxdepth 6 -name '*.ipa' 2>/dev/null | head -n 20
           fi
 
-      # actions/create-release and actions/upload-release-asset are archived by GitHub and
-      # fail on current runners. Artifacts are enough and need no token handling.
+      # Published as a release asset, not an Actions artifact. Artifacts count against the
+      # account's storage quota — 500 MB on the free plan, about seven IPAs — and hitting it
+      # fails the job, which also skips saving the Bazel cache, so every later build started
+      # cold. Release assets have no total quota, only 2 GiB per file.
+      #
+      # The GitHub CLI ships on the runner, so the archived create-release actions are not
+      # needed. One release per build number: a rerun of the same commit reuses the number,
+      # so the release is created only if missing and the asset is replaced in place.
+      #
+      # No `if: always()` any more: a failed build has nothing worth publishing.
+      #
       # Signed with the repository's stub certificates, so iOS will refuse to install it
       # as-is. Re-sign with your own Apple ID (Sideloadly, AltStore) to sideload it.
-      - name: Upload IPA
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: Netegram_${{ env.NETEGRAM_RELEASE_FILE }}
-          path: /Users/Shared/netegram/build/artifacts/Netegram_${{ env.NETEGRAM_RELEASE_FILE }}.ipa
-          if-no-files-found: warn
+      - name: Publish IPA
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          IPA="/Users/Shared/netegram/build/artifacts/Netegram_${NETEGRAM_RELEASE_FILE}.ipa"
+          if [ ! -f "$IPA" ]; then
+            echo "::error::No IPA at $IPA - the build step produced nothing to publish."
+            exit 1
+          fi
+          TAG="netegram-${NETEGRAM_RELEASE}-${BUILD_NUMBER}"
+          if ! gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$TAG" -R "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "Netegram ${NETEGRAM_RELEASE} (${BUILD_NUMBER})" \
+              --notes "Commit ${GITHUB_SHA}"
+          fi
+          gh release upload "$TAG" "$IPA" -R "$GITHUB_REPOSITORY" --clobber
+          echo "::notice::IPA: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}"
