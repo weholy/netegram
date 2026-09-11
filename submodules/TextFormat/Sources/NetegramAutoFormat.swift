@@ -196,7 +196,9 @@ public func netegramApplyAutoFormat(messages: [EnqueueMessage]) -> [EnqueueMessa
         }
 
         var existing: [MessageTextEntity] = []
-        var otherAttributes: [MessageAttribute] = []
+        // The engine alias rather than Postbox's own name: TextFormat does not import Postbox,
+        // and TelegramCore does not re-export it.
+        var otherAttributes: [EngineMessage.Attribute] = []
         for attribute in attributes {
             if let attribute = attribute as? TextEntitiesMessageAttribute {
                 existing.append(contentsOf: attribute.entities)

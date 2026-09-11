@@ -298,7 +298,10 @@ static BOOL MTGhostIsFakeActivity(NSString *peerKey, int32_t actionId) {
     if (peerKey == nil || ![NGStore boolForKey:@"netegram.fake.activityEnabled"]) {
         return NO;
     }
-    NSString *kind = [NGStore stringForKey:@"netegram.fake.activityKind"] ?: @"typing";
+    NSString *kind = [NGStore stringForKey:@"netegram.fake.activityKind"];
+    if (kind == nil) {
+        kind = @"typing";
+    }
     if (MTGhostActionForFakeKind(kind) != actionId) {
         return NO;
     }
