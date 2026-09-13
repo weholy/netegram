@@ -244,7 +244,7 @@ private enum NetegramGhostEntry: ItemListNodeEntry {
 /// Formats minutes-since-midnight the way MTGhostIsWithinSchedule stores them, back into
 /// "HH:MM" for display. Wraps defensively — a value outside 0..1439 cannot occur through this
 /// screen's own editor, but a value written by hand into an imported settings file could.
-private func netegramFormatTimeOfDay(_ minutes: Int32) -> String {
+func netegramFormatTimeOfDay(_ minutes: Int32) -> String {
     let wrapped = ((minutes % 1440) + 1440) % 1440
     return String(format: "%02d:%02d", wrapped / 60, wrapped % 60)
 }

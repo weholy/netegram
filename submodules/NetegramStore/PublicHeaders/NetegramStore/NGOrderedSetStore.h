@@ -29,6 +29,10 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (BOOL)containsObject:(NSString *)value;
 
+/// How many entries are currently kept, for diagnostics — proof the store is actually
+/// recording something rather than silently discarding it.
+- (NSUInteger)count;
+
 - (void)addObjects:(NSArray<NSString *> *)values;
 
 /// Forces the pending save out. Called when the app steps back.

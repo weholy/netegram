@@ -338,8 +338,15 @@ public final class NetegramGhostPreferences {
     }
 
     /// Re-reads the store and pushes it out. Used after an import or a reset, where every
-    /// value changed at once without going through any of the setters.
+    /// value changed at once without going through any of the setters — including the one
+    /// setter enforces that staying online and hiding online cannot both be on. An imported
+    /// file can still contain both set, so that invariant is re-checked here rather than only
+    /// at the point of writing a single flag: this runs after every bulk change and quietly
+    /// turns hideOnline back off rather than leaving a contradiction nothing else will catch.
     public func republish() {
+        if NGStore.bool(forKey: NetegramGhostKeys.alwaysOnline) && NGStore.bool(forKey: NetegramGhostKeys.hideOnline) {
+            NGStore.setObject(false, forKey: NetegramGhostKeys.hideOnline)
+        }
         self.promise.set(NetegramGhostPreferences.current())
     }
 

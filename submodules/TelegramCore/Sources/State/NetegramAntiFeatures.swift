@@ -130,6 +130,12 @@ public enum NetegramDeletedMessages {
         return NetegramDeletedMessages.store.containsObject(NetegramDeletedMessages.key(id))
     }
 
+    /// How many are currently kept, for the diagnostics screen — direct evidence the tracker
+    /// is recording something rather than silently discarding it.
+    public static var count: Int {
+        return Int(NetegramDeletedMessages.store.count())
+    }
+
     /// Called when the app steps back, so a burst of marks recorded a moment earlier is on
     /// disk before iOS is free to terminate the process.
     public static func flush() {

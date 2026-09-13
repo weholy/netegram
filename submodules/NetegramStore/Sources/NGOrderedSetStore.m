@@ -125,6 +125,14 @@ static const NSTimeInterval NGOrderedSetStoreSaveDelay = 1.0;
     return result;
 }
 
+- (NSUInteger)count {
+    [_lock lock];
+    [self loadLocked];
+    NSUInteger result = _order.count;
+    [_lock unlock];
+    return result;
+}
+
 - (void)addObjects:(NSArray<NSString *> *)values {
     if (values.count == 0) {
         return;

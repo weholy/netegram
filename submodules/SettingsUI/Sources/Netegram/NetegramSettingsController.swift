@@ -11,6 +11,7 @@ import PresentationDataUtils
 import AccountContext
 
 private final class NetegramSettingsControllerArguments {
+    let openDiagnostics: () -> Void
     let openHideButtons: () -> Void
     let openNavBar: () -> Void
     let openLiquidGlass: () -> Void
@@ -20,7 +21,8 @@ private final class NetegramSettingsControllerArguments {
     let openFakeActivity: () -> Void
     let openTransfer: () -> Void
 
-    init(openHideButtons: @escaping () -> Void, openNavBar: @escaping () -> Void, openLiquidGlass: @escaping () -> Void, openGhostCategory: @escaping (NetegramGhostCategory) -> Void, openLocalFeatures: @escaping () -> Void, openAutoFormat: @escaping () -> Void, openFakeActivity: @escaping () -> Void, openTransfer: @escaping () -> Void) {
+    init(openDiagnostics: @escaping () -> Void, openHideButtons: @escaping () -> Void, openNavBar: @escaping () -> Void, openLiquidGlass: @escaping () -> Void, openGhostCategory: @escaping (NetegramGhostCategory) -> Void, openLocalFeatures: @escaping () -> Void, openAutoFormat: @escaping () -> Void, openFakeActivity: @escaping () -> Void, openTransfer: @escaping () -> Void) {
+        self.openDiagnostics = openDiagnostics
         self.openHideButtons = openHideButtons
         self.openNavBar = openNavBar
         self.openLiquidGlass = openLiquidGlass
@@ -36,6 +38,7 @@ private final class NetegramSettingsControllerArguments {
 // each entry needs its own to stand apart.
 private enum NetegramSettingsSection: Int32 {
     case logoHeader
+    case diagnostics
     case hideButtons
     case navBar
     case liquidGlass
@@ -48,6 +51,7 @@ private enum NetegramSettingsSection: Int32 {
 
 private enum NetegramSettingsEntry: ItemListNodeEntry {
     case logoHeader(Bool)
+    case diagnostics
     case hideButtons
     case navBar
     case liquidGlass
@@ -62,6 +66,8 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
         switch self {
         case .logoHeader:
             return NetegramSettingsSection.logoHeader.rawValue
+        case .diagnostics:
+            return NetegramSettingsSection.diagnostics.rawValue
         case .hideButtons:
             return NetegramSettingsSection.hideButtons.rawValue
         case .navBar:
@@ -85,6 +91,8 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
         switch self {
         case .logoHeader:
             return -1
+        case .diagnostics:
+            return 1
         case .fakeActivity:
             return 2
         case .ghostHeader:
@@ -115,6 +123,10 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
         switch self {
         case let .logoHeader(showsRevision):
             return NetegramHeaderItem(theme: presentationData.theme, showsRevision: showsRevision, sectionId: self.section)
+        case .diagnostics:
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramDiagnosticsStrings.title, label: "", additionalDetailLabel: NetegramDiagnosticsStrings.subtitle, sectionId: self.section, style: .blocks, action: {
+                arguments.openDiagnostics()
+            })
         case .hideButtons:
             return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramLookStrings.hideButtonsTitle, label: "", additionalDetailLabel: NetegramLookStrings.hideButtonsSubtitle, sectionId: self.section, style: .blocks, action: {
                 arguments.openHideButtons()
@@ -172,9 +184,9 @@ private func netegramGhostSettingsEntries(_ ghostSettings: NetegramGhostSettings
 private func netegramSettingsEntries(isOwner: Bool, ghostSettings: NetegramGhostSettings) -> [NetegramSettingsEntry] {
     let ghostEntries = netegramGhostSettingsEntries(ghostSettings)
     guard isOwner else {
-        return ghostEntries + [.liquidGlass, .navBar]
+        return [.diagnostics] + ghostEntries + [.liquidGlass, .navBar]
     }
-    return [.logoHeader(true), .fakeActivity] + ghostEntries + [.liquidGlass, .hideButtons, .navBar, .localFeatures, .autoFormat, .transfer]
+    return [.logoHeader(true), .diagnostics, .fakeActivity] + ghostEntries + [.liquidGlass, .hideButtons, .navBar, .localFeatures, .autoFormat, .transfer]
 }
 
 /// Netegram: the account this build belongs to.
@@ -220,7 +232,9 @@ public func netegramSettingsController(context: AccountContext) -> ViewControlle
 
     var pushControllerImpl: ((ViewController) -> Void)?
 
-    let arguments = NetegramSettingsControllerArguments(openHideButtons: {
+    let arguments = NetegramSettingsControllerArguments(openDiagnostics: {
+        pushControllerImpl?(netegramDiagnosticsController(context: context))
+    }, openHideButtons: {
         pushControllerImpl?(netegramHideProfileButtonsController(context: context))
     }, openNavBar: {
         pushControllerImpl?(netegramNavBarController(context: context))
