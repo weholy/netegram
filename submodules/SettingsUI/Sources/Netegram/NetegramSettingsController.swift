@@ -18,10 +18,11 @@ private final class NetegramSettingsControllerArguments {
     let openGhostCategory: (NetegramGhostCategory) -> Void
     let openLocalFeatures: () -> Void
     let openAutoFormat: () -> Void
+    let openComboFonts: () -> Void
     let openFakeActivity: () -> Void
     let openTransfer: () -> Void
 
-    init(openDiagnostics: @escaping () -> Void, openHideButtons: @escaping () -> Void, openNavBar: @escaping () -> Void, openLiquidGlass: @escaping () -> Void, openGhostCategory: @escaping (NetegramGhostCategory) -> Void, openLocalFeatures: @escaping () -> Void, openAutoFormat: @escaping () -> Void, openFakeActivity: @escaping () -> Void, openTransfer: @escaping () -> Void) {
+    init(openDiagnostics: @escaping () -> Void, openHideButtons: @escaping () -> Void, openNavBar: @escaping () -> Void, openLiquidGlass: @escaping () -> Void, openGhostCategory: @escaping (NetegramGhostCategory) -> Void, openLocalFeatures: @escaping () -> Void, openAutoFormat: @escaping () -> Void, openComboFonts: @escaping () -> Void, openFakeActivity: @escaping () -> Void, openTransfer: @escaping () -> Void) {
         self.openDiagnostics = openDiagnostics
         self.openHideButtons = openHideButtons
         self.openNavBar = openNavBar
@@ -29,6 +30,7 @@ private final class NetegramSettingsControllerArguments {
         self.openGhostCategory = openGhostCategory
         self.openLocalFeatures = openLocalFeatures
         self.openAutoFormat = openAutoFormat
+        self.openComboFonts = openComboFonts
         self.openFakeActivity = openFakeActivity
         self.openTransfer = openTransfer
     }
@@ -45,6 +47,7 @@ private enum NetegramSettingsSection: Int32 {
     case ghost
     case localFeatures
     case autoFormat
+    case comboFonts
     case fakeActivity
     case transfer
 }
@@ -59,6 +62,7 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
     case ghostCategory(NetegramGhostCategory, Int)
     case localFeatures
     case autoFormat
+    case comboFonts
     case fakeActivity
     case transfer
 
@@ -80,6 +84,8 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
             return NetegramSettingsSection.localFeatures.rawValue
         case .autoFormat:
             return NetegramSettingsSection.autoFormat.rawValue
+        case .comboFonts:
+            return NetegramSettingsSection.comboFonts.rawValue
         case .fakeActivity:
             return NetegramSettingsSection.fakeActivity.rawValue
         case .transfer:
@@ -109,8 +115,10 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
             return 14
         case .autoFormat:
             return 15
-        case .transfer:
+        case .comboFonts:
             return 16
+        case .transfer:
+            return 17
         }
     }
 
@@ -156,6 +164,10 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
             return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramAutoFormatStrings.title, label: "", additionalDetailLabel: NetegramAutoFormatStrings.subtitle, sectionId: self.section, style: .blocks, action: {
                 arguments.openAutoFormat()
             })
+        case .comboFonts:
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramComboFontsStrings.title, label: "", additionalDetailLabel: NetegramComboFontsStrings.subtitle, sectionId: self.section, style: .blocks, action: {
+                arguments.openComboFonts()
+            })
         case .fakeActivity:
             return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramFakeStrings.title, label: "", additionalDetailLabel: NetegramFakeStrings.subtitle, sectionId: self.section, style: .blocks, action: {
                 arguments.openFakeActivity()
@@ -186,7 +198,7 @@ private func netegramSettingsEntries(isOwner: Bool, ghostSettings: NetegramGhost
     guard isOwner else {
         return [.diagnostics] + ghostEntries + [.liquidGlass, .navBar]
     }
-    return [.logoHeader(true), .diagnostics, .fakeActivity] + ghostEntries + [.liquidGlass, .hideButtons, .navBar, .localFeatures, .autoFormat, .transfer]
+    return [.logoHeader(true), .diagnostics, .fakeActivity] + ghostEntries + [.liquidGlass, .hideButtons, .navBar, .localFeatures, .autoFormat, .comboFonts, .transfer]
 }
 
 /// Netegram: the account this build belongs to.
@@ -246,6 +258,8 @@ public func netegramSettingsController(context: AccountContext) -> ViewControlle
         pushControllerImpl?(netegramLocalFeaturesController(context: context))
     }, openAutoFormat: {
         pushControllerImpl?(netegramAutoFormatController(context: context))
+    }, openComboFonts: {
+        pushControllerImpl?(netegramComboFontsController(context: context))
     }, openFakeActivity: {
         pushControllerImpl?(netegramFakeActivityController(context: context))
     }, openTransfer: {

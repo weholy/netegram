@@ -1,6 +1,7 @@
 import Foundation
 import NetegramStore
 import SwiftSignalKit
+import TelegramCore
 
 /// Netegram: the ghost-mode switches.
 ///
@@ -131,6 +132,12 @@ public enum NetegramGhostStrings {
     public static let scheduleHideOnlineFooter = "В это время статус «в сети» скрыт, даже если переключатель выше выключен."
     public static let scheduleFrom = "С"
     public static let scheduleTo = "До"
+
+    public static let markColorTitle = "Цвет значка"
+    public static let markColorFooter = "Цвет значка на удалённых сообщениях."
+    public static let markOpacityTitle = "Прозрачность"
+    public static let markSizeTitle = "Размер"
+    public static let markSizeFooter = "Насколько заметен значок рядом с удалённым сообщением."
 }
 
 /// One row per screen; a screen is everything sharing a category. Splitting a ~40-item list
@@ -285,8 +292,11 @@ public struct NetegramGhostSettings: Equatable {
     public let scheduleAlwaysOnlineEnd: Int32
     public let scheduleHideOnlineStart: Int32
     public let scheduleHideOnlineEnd: Int32
+    public let deletedMarkColor: UInt32
+    public let deletedMarkOpacity: Double
+    public let deletedMarkSize: Double
 
-    public init(flags: [String: Bool], delayedSendSeconds: Int32, deviceName: String, systemVersion: String, langCode: String, latitude: Double, longitude: Double, peerLists: [String: [Int64]], scheduleAlwaysOnlineStart: Int32, scheduleAlwaysOnlineEnd: Int32, scheduleHideOnlineStart: Int32, scheduleHideOnlineEnd: Int32) {
+    public init(flags: [String: Bool], delayedSendSeconds: Int32, deviceName: String, systemVersion: String, langCode: String, latitude: Double, longitude: Double, peerLists: [String: [Int64]], scheduleAlwaysOnlineStart: Int32, scheduleAlwaysOnlineEnd: Int32, scheduleHideOnlineStart: Int32, scheduleHideOnlineEnd: Int32, deletedMarkColor: UInt32, deletedMarkOpacity: Double, deletedMarkSize: Double) {
         self.flags = flags
         self.delayedSendSeconds = delayedSendSeconds
         self.deviceName = deviceName
@@ -299,6 +309,9 @@ public struct NetegramGhostSettings: Equatable {
         self.scheduleAlwaysOnlineEnd = scheduleAlwaysOnlineEnd
         self.scheduleHideOnlineStart = scheduleHideOnlineStart
         self.scheduleHideOnlineEnd = scheduleHideOnlineEnd
+        self.deletedMarkColor = deletedMarkColor
+        self.deletedMarkOpacity = deletedMarkOpacity
+        self.deletedMarkSize = deletedMarkSize
     }
 
     public func flag(_ key: String) -> Bool {
@@ -372,7 +385,10 @@ public final class NetegramGhostPreferences {
             scheduleAlwaysOnlineStart: Int32(NGStore.integer(forKey: NetegramGhostKeys.scheduleAlwaysOnlineStart)),
             scheduleAlwaysOnlineEnd: Int32(NGStore.integer(forKey: NetegramGhostKeys.scheduleAlwaysOnlineEnd)),
             scheduleHideOnlineStart: Int32(NGStore.integer(forKey: NetegramGhostKeys.scheduleHideOnlineStart)),
-            scheduleHideOnlineEnd: Int32(NGStore.integer(forKey: NetegramGhostKeys.scheduleHideOnlineEnd))
+            scheduleHideOnlineEnd: Int32(NGStore.integer(forKey: NetegramGhostKeys.scheduleHideOnlineEnd)),
+            deletedMarkColor: NetegramDeletedMarkSettings.colorRGB,
+            deletedMarkOpacity: NetegramDeletedMarkSettings.opacity,
+            deletedMarkSize: NetegramDeletedMarkSettings.size
         )
     }
 
@@ -466,6 +482,21 @@ public final class NetegramGhostPreferences {
     public func setScheduleWindow(startKey: String, endKey: String, startMinutes: Int32, endMinutes: Int32) {
         NGStore.setObject(Int(startMinutes), forKey: startKey)
         NGStore.setObject(Int(endMinutes), forKey: endKey)
+        self.promise.set(NetegramGhostPreferences.current())
+    }
+
+    public func setDeletedMarkColor(_ value: UInt32) {
+        NetegramDeletedMarkSettings.colorRGB = value
+        self.promise.set(NetegramGhostPreferences.current())
+    }
+
+    public func setDeletedMarkOpacity(_ value: Double) {
+        NetegramDeletedMarkSettings.opacity = value
+        self.promise.set(NetegramGhostPreferences.current())
+    }
+
+    public func setDeletedMarkSize(_ value: Double) {
+        NetegramDeletedMarkSettings.size = value
         self.promise.set(NetegramGhostPreferences.current())
     }
 }

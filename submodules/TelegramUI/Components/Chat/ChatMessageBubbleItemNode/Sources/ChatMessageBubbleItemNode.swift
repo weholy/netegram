@@ -5,6 +5,7 @@ import Display
 import SwiftSignalKit
 import Postbox
 import TelegramCore
+import NetegramStore
 import TelegramPresentationData
 import TelegramUIPreferences
 import TextFormat
@@ -5312,16 +5313,23 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
         // reads as part of what the person wrote; this has to read as something the app is
         // saying about the message.
         if NetegramDeletedMessages.contains(item.message.id) {
-            if strongSelf.netegramDeletedNode == nil {
-                let deletedNode = ASImageNode()
+            let deletedNode: ASImageNode
+            if let existing = strongSelf.netegramDeletedNode {
+                deletedNode = existing
+            } else {
+                deletedNode = ASImageNode()
                 deletedNode.displaysAsynchronously = false
                 deletedNode.displayWithoutProcessing = true
                 deletedNode.isUserInteractionEnabled = false
                 deletedNode.contentMode = .scaleAspectFit
-                deletedNode.image = netegramDeletedMarkImage()
                 strongSelf.netegramDeletedNode = deletedNode
                 strongSelf.insertSubnode(deletedNode, belowSubnode: strongSelf.messageAccessibilityArea)
             }
+            // Re-applied every pass, not only at creation: a colour, size or opacity change
+            // made while this message is already on screen has to show up without the bubble
+            // being scrolled away and back.
+            deletedNode.image = NetegramDeletedMarkImageCache.shared.image()
+            deletedNode.alpha = CGFloat(NetegramDeletedMarkSettings.opacity)
         } else if let deletedNode = strongSelf.netegramDeletedNode {
             strongSelf.netegramDeletedNode = nil
             deletedNode.removeFromSupernode()
@@ -5544,7 +5552,8 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
                 // against the left edge with the avatar beside it, so a mark placed to its left
                 // lands off screen — which is why it was never visible. Being outside also
                 // means it never covers text and never shifts what is already laid out.
-                let markSize = CGSize(width: 18.0, height: 18.0)
+                let markSide = CGFloat(NetegramDeletedMarkSettings.size)
+                let markSize = CGSize(width: markSide, height: markSide)
                 let markX = incoming ? backgroundFrame.maxX + 3.0 : backgroundFrame.minX - markSize.width - 3.0
                 // Sat against the bottom of the bubble rather than its top: that is where the
                 // eye already is after reading the message and the timestamp.
@@ -7914,29 +7923,67 @@ public final class NameNavigateButton: HighlightableButton {
     }
 }
 
-/// Netegram: the red bin drawn beside a message someone tried to take back.
+/// Netegram: the bin drawn beside a message someone tried to take back.
 ///
 /// Rasterised with the colour baked in, not handed over as a tinted template. The node it goes
 /// into draws the image's pixels directly, which skips the tint that lives on UIImage — a
-/// template symbol drawn that way comes out as its black mask.
-private func netegramDeletedMarkImage() -> UIImage? {
-    let size = CGSize(width: 18.0, height: 18.0)
-    let configuration = UIImage.SymbolConfiguration(pointSize: 14.0, weight: .semibold)
-    guard let symbol = UIImage(systemName: "trash.fill", withConfiguration: configuration) else {
-        return nil
+/// template symbol drawn that way comes out as its black mask. Opacity is not baked in here; it
+/// is applied as the node's `alpha`, which is the same visual result without re-rendering the
+/// image every time only the opacity setting changes.
+///
+/// Cached and invalidated the same way NetegramAutoFormat caches its style: this runs once per
+/// visible bubble on every layout pass, so re-rendering on every call would cost far more than
+/// the two settings reads that decide whether anything actually changed.
+private final class NetegramDeletedMarkImageCache {
+    static let shared = NetegramDeletedMarkImageCache()
+
+    private let lock = NSLock()
+    private var cached: (color: UInt32, size: Double, image: UIImage?)?
+
+    private lazy var observer: NSObjectProtocol = NotificationCenter.default.addObserver(forName: NGStore.didChangeNotification, object: nil, queue: nil, using: { [weak self] _ in
+        guard let self else { return }
+        self.lock.lock()
+        self.cached = nil
+        self.lock.unlock()
+    })
+
+    func image() -> UIImage? {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        _ = self.observer
+
+        let color = NetegramDeletedMarkSettings.colorRGB
+        let size = NetegramDeletedMarkSettings.size
+        if let cached = self.cached, cached.color == color, cached.size == size {
+            return cached.image
+        }
+
+        let rendered = NetegramDeletedMarkImageCache.render(color: color, size: size)
+        self.cached = (color, size, rendered)
+        return rendered
     }
-    return UIGraphicsImageRenderer(size: size).image { context in
-        UIColor(rgb: 0xFF3B30).setFill()
-        let drawSize = symbol.size
-        let rect = CGRect(
-            x: (size.width - drawSize.width) / 2.0,
-            y: (size.height - drawSize.height) / 2.0,
-            width: drawSize.width,
-            height: drawSize.height
-        )
-        // The symbol supplies the shape; the fill above supplies the colour.
-        symbol.withRenderingMode(.alwaysTemplate).draw(in: rect)
-        context.cgContext.setBlendMode(.sourceIn)
-        context.cgContext.fill(CGRect(origin: CGPoint(), size: size))
+
+    private static func render(color: UInt32, size: Double) -> UIImage? {
+        let canvasSize = CGSize(width: CGFloat(size), height: CGFloat(size))
+        // The glyph always drew at 14pt inside an 18pt canvas; keeping that ratio means a
+        // bigger mark also draws a bigger bin rather than the same glyph adrift in more space.
+        let configuration = UIImage.SymbolConfiguration(pointSize: CGFloat(size) * (14.0 / 18.0), weight: .semibold)
+        guard let symbol = UIImage(systemName: "trash.fill", withConfiguration: configuration) else {
+            return nil
+        }
+        return UIGraphicsImageRenderer(size: canvasSize).image { context in
+            UIColor(rgb: color).setFill()
+            let drawSize = symbol.size
+            let rect = CGRect(
+                x: (canvasSize.width - drawSize.width) / 2.0,
+                y: (canvasSize.height - drawSize.height) / 2.0,
+                width: drawSize.width,
+                height: drawSize.height
+            )
+            // The symbol supplies the shape; the fill above supplies the colour.
+            symbol.withRenderingMode(.alwaysTemplate).draw(in: rect)
+            context.cgContext.setBlendMode(.sourceIn)
+            context.cgContext.fill(CGRect(origin: CGPoint(), size: canvasSize))
+        }
     }
 }

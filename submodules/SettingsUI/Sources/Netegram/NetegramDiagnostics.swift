@@ -151,13 +151,20 @@ public enum NetegramDiagnostics {
     // MARK: - Autoformat
 
     private static func autoFormatSection() -> NetegramDiagnosticSection {
-        let item: NetegramDiagnosticItem
-        if let style = NetegramAutoFormat.style {
-            item = NetegramDiagnosticItem(title: "Автоформатирование", status: .ok, detail: "Активен стиль «\(style.title)» — применяется при наборе и при отправке.")
+        var items: [NetegramDiagnosticItem] = []
+
+        if let choices = NetegramComboFonts.activeStyles {
+            let names = choices.map { $0.title }.joined(separator: ", ")
+            items.append(NetegramDiagnosticItem(title: "Комбо-шрифты", status: .ok, detail: "Активны: \(names)."))
+        } else if NetegramComboFonts.isEnabled {
+            items.append(NetegramDiagnosticItem(title: "Комбо-шрифты", status: .warning, detail: "Включены, но не выбрано ни одного стиля — эффекта не будет."))
+        } else if let style = NetegramAutoFormat.style {
+            items.append(NetegramDiagnosticItem(title: "Автоформатирование", status: .ok, detail: "Активен стиль «\(style.title)» — применяется при наборе и при отправке."))
         } else {
-            item = NetegramDiagnosticItem(title: "Автоформатирование", status: .ok, detail: "Выключено — стиль не выбран.")
+            items.append(NetegramDiagnosticItem(title: "Автоформатирование", status: .ok, detail: "Выключено — ни обычный стиль, ни комбо-шрифты не выбраны."))
         }
-        return NetegramDiagnosticSection(title: "АВТОФОРМАТ", items: [item])
+
+        return NetegramDiagnosticSection(title: "АВТОФОРМАТ", items: items)
     }
 
     // MARK: - Fake activity

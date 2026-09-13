@@ -143,6 +143,64 @@ public enum NetegramDeletedMessages {
     }
 }
 
+/// Netegram: how the mark beside a kept message looks.
+///
+/// A plain settings holder rather than a preferences class with its own signal: the mark is
+/// read once per bubble layout, already inside a hot scrolling path, and reading three keys
+/// directly there is simpler than plumbing a fourth signal through the chat view for it. The
+/// rendering side (TelegramUI, since it needs UIKit) caches the drawn image and invalidates it
+/// on the same NGStore change notification these values are read from.
+public enum NetegramDeletedMarkSettings {
+    private static let colorKey = "netegram.deletedMark.color"
+    private static let opacityKey = "netegram.deletedMark.opacity"
+    private static let sizeKey = "netegram.deletedMark.size"
+
+    /// 0xRRGGBB. The red the mark always drew in, unless replaced. Read via the generic
+    /// accessor rather than `integerForKey:` so an absent key is distinguishable from an
+    /// explicitly chosen black (0) — `integerForKey:` returns 0 for both.
+    public static var colorRGB: UInt32 {
+        get {
+            // `exactly:` rather than the trapping initializer: a hand-edited or corrupted
+            // imported settings file could carry a negative number or one past UInt32's range
+            // under this key, and a stored value out of range should fall back quietly rather
+            // than crash the app the next time a bubble with a kept message is laid out.
+            guard let stored = NGStore.object(forKey: NetegramDeletedMarkSettings.colorKey) as? Int, let value = UInt32(exactly: stored) else {
+                return 0xFF3B30
+            }
+            return value
+        }
+        set {
+            NGStore.setObject(Int(newValue), forKey: NetegramDeletedMarkSettings.colorKey)
+        }
+    }
+
+    /// 0 (invisible) to 1 (opaque). Defaults to fully opaque — the mark's look before this was
+    /// configurable. Clamped on read, not only in the editor: an imported settings file reaches
+    /// the store directly, bypassing whatever range the slider enforces.
+    public static var opacity: Double {
+        get {
+            let stored = (NGStore.object(forKey: NetegramDeletedMarkSettings.opacityKey) as? Double) ?? 1.0
+            return stored.isFinite ? min(1.0, max(0.0, stored)) : 1.0
+        }
+        set {
+            NGStore.setObject(newValue, forKey: NetegramDeletedMarkSettings.opacityKey)
+        }
+    }
+
+    /// Side length in points. 18 is what it always drew at. Clamped for the same reason as
+    /// `opacity` above — additionally, an unclamped huge or negative value here would reach
+    /// `CGSize`/`Int` conversions in the rendering and layout code downstream.
+    public static var size: Double {
+        get {
+            let stored = (NGStore.object(forKey: NetegramDeletedMarkSettings.sizeKey) as? Double) ?? 18.0
+            return stored.isFinite ? min(64.0, max(8.0, stored)) : 18.0
+        }
+        set {
+            NGStore.setObject(newValue, forKey: NetegramDeletedMarkSettings.sizeKey)
+        }
+    }
+}
+
 /// Keeps the messages and records them as deleted, instead of removing them.
 ///
 /// Recording alone is not enough to see anything: the chat re-lays a message out only when the

@@ -23,8 +23,11 @@ private final class NetegramGhostArguments {
     let openSecondaryPeerList: () -> Void
     let updateScheduleStart: (NetegramGhostScheduleSlot, String) -> Void
     let updateScheduleEnd: (NetegramGhostScheduleSlot, String) -> Void
+    let openMarkColor: () -> Void
+    let updateMarkOpacity: (Int) -> Void
+    let updateMarkSize: (Int) -> Void
 
-    init(updateFlag: @escaping (String, Bool) -> Void, updateDelaySeconds: @escaping (Int32) -> Void, updateDeviceName: @escaping (String) -> Void, updateSystemVersion: @escaping (String) -> Void, updateLangCode: @escaping (String) -> Void, pickLocation: @escaping () -> Void, resetLocation: @escaping () -> Void, openPrimaryPeerList: @escaping () -> Void, openSecondaryPeerList: @escaping () -> Void, updateScheduleStart: @escaping (NetegramGhostScheduleSlot, String) -> Void, updateScheduleEnd: @escaping (NetegramGhostScheduleSlot, String) -> Void) {
+    init(updateFlag: @escaping (String, Bool) -> Void, updateDelaySeconds: @escaping (Int32) -> Void, updateDeviceName: @escaping (String) -> Void, updateSystemVersion: @escaping (String) -> Void, updateLangCode: @escaping (String) -> Void, pickLocation: @escaping () -> Void, resetLocation: @escaping () -> Void, openPrimaryPeerList: @escaping () -> Void, openSecondaryPeerList: @escaping () -> Void, updateScheduleStart: @escaping (NetegramGhostScheduleSlot, String) -> Void, updateScheduleEnd: @escaping (NetegramGhostScheduleSlot, String) -> Void, openMarkColor: @escaping () -> Void, updateMarkOpacity: @escaping (Int) -> Void, updateMarkSize: @escaping (Int) -> Void) {
         self.updateFlag = updateFlag
         self.updateDelaySeconds = updateDelaySeconds
         self.updateDeviceName = updateDeviceName
@@ -36,6 +39,9 @@ private final class NetegramGhostArguments {
         self.openSecondaryPeerList = openSecondaryPeerList
         self.updateScheduleStart = updateScheduleStart
         self.updateScheduleEnd = updateScheduleEnd
+        self.openMarkColor = openMarkColor
+        self.updateMarkOpacity = updateMarkOpacity
+        self.updateMarkSize = updateMarkSize
     }
 }
 
@@ -84,6 +90,12 @@ private enum NetegramGhostEntry: ItemListNodeEntry {
     case scheduleStart(NetegramGhostScheduleSlot, String)
     case scheduleEnd(NetegramGhostScheduleSlot, String)
 
+    case markColor(String)
+    case markColorFooter
+    case markOpacity(Int)
+    case markSize(Int)
+    case markSizeFooter
+
     var section: ItemListSectionId {
         switch self {
         case let .toggle(index, _, _, _, _), let .toggleFooter(index, _):
@@ -106,6 +118,10 @@ private enum NetegramGhostEntry: ItemListNodeEntry {
             return ItemListSectionId(NetegramGhostSection.extraBase + 7)
         case .scheduleToggle(.hideOnline, _, _), .scheduleFooter(.hideOnline, _), .scheduleStart(.hideOnline, _), .scheduleEnd(.hideOnline, _):
             return ItemListSectionId(NetegramGhostSection.extraBase + 8)
+        case .markColor, .markColorFooter:
+            return ItemListSectionId(NetegramGhostSection.extraBase + 9)
+        case .markOpacity, .markSize, .markSizeFooter:
+            return ItemListSectionId(NetegramGhostSection.extraBase + 10)
         }
     }
 
@@ -158,6 +174,16 @@ private enum NetegramGhostEntry: ItemListNodeEntry {
             return NetegramGhostSection.extraBase + 19
         case .scheduleEnd(.hideOnline, _):
             return NetegramGhostSection.extraBase + 20
+        case .markColor:
+            return NetegramGhostSection.extraBase + 21
+        case .markColorFooter:
+            return NetegramGhostSection.extraBase + 22
+        case .markOpacity:
+            return NetegramGhostSection.extraBase + 23
+        case .markSize:
+            return NetegramGhostSection.extraBase + 24
+        case .markSizeFooter:
+            return NetegramGhostSection.extraBase + 25
         }
     }
 
@@ -237,6 +263,25 @@ private enum NetegramGhostEntry: ItemListNodeEntry {
             return ItemListSingleLineInputItem(presentationData: presentationData, systemStyle: .glass, title: NSAttributedString(string: NetegramGhostStrings.scheduleTo, textColor: presentationData.theme.list.itemPrimaryTextColor), text: value, placeholder: "00:00", type: .regular(capitalization: false, autocorrection: false), sectionId: self.section, textUpdated: { value in
                 arguments.updateScheduleEnd(slot, value)
             }, action: {})
+        case let .markColor(colorName):
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramGhostStrings.markColorTitle, label: colorName, sectionId: self.section, style: .blocks, action: {
+                arguments.openMarkColor()
+            })
+        case .markColorFooter:
+            return ItemListTextItem(presentationData: presentationData, text: .plain(NetegramGhostStrings.markColorFooter), sectionId: self.section)
+        case let .markOpacity(percent):
+            return NetegramStarsSliderItem(theme: presentationData.theme, title: "\(NetegramGhostStrings.markOpacityTitle): \(percent)%", value: percent, maxValue: 100, enabled: true, sectionId: self.section, updated: { updated in
+                arguments.updateMarkOpacity(updated)
+            })
+        case let .markSize(points):
+            return NetegramStarsSliderItem(theme: presentationData.theme, title: "\(NetegramGhostStrings.markSizeTitle): \(points) pt", value: points, maxValue: 32, enabled: true, sectionId: self.section, updated: { updated in
+                // The slider itself has no floor, so a drag to the very bottom would otherwise
+                // store a zero-point mark — present, but invisible, which looks identical to
+                // the feature having silently broken.
+                arguments.updateMarkSize(max(10, updated))
+            })
+        case .markSizeFooter:
+            return ItemListTextItem(presentationData: presentationData, text: .plain(NetegramGhostStrings.markSizeFooter), sectionId: self.section)
         }
     }
 }
@@ -257,6 +302,119 @@ private func netegramParseTimeOfDay(_ text: String) -> Int32? {
         return nil
     }
     return Int32(hours * 60 + minutes)
+}
+
+/// A small fixed palette rather than a full colour picker: wrapping `UIColorPickerViewController`
+/// is a much larger, riskier surface for what is fundamentally "pick one of a few sensible
+/// colours for a small icon."
+private enum NetegramDeletedMarkColorPreset: CaseIterable {
+    case red
+    case orange
+    case yellow
+    case green
+    case teal
+    case blue
+    case purple
+    case gray
+
+    /// The colour the mark always drew in, before this was configurable.
+    static let defaultPreset: NetegramDeletedMarkColorPreset = .red
+
+    var rgb: UInt32 {
+        switch self {
+        case .red: return 0xFF3B30
+        case .orange: return 0xFF9500
+        case .yellow: return 0xFFCC00
+        case .green: return 0x34C759
+        case .teal: return 0x30B0C7
+        case .blue: return 0x007AFF
+        case .purple: return 0xAF52DE
+        case .gray: return 0x8E8E93
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .red: return "Красный"
+        case .orange: return "Оранжевый"
+        case .yellow: return "Жёлтый"
+        case .green: return "Зелёный"
+        case .teal: return "Бирюзовый"
+        case .blue: return "Синий"
+        case .purple: return "Фиолетовый"
+        case .gray: return "Серый"
+        }
+    }
+}
+
+/// The name shown on the parent row. Every value in the store came from the picker below, so
+/// this always matches a preset — the fallback only covers a value hand-edited into an imported
+/// settings file.
+private func netegramDeletedMarkColorName(_ rgb: UInt32) -> String {
+    return NetegramDeletedMarkColorPreset.allCases.first(where: { $0.rgb == rgb })?.title ?? NetegramDeletedMarkColorPreset.defaultPreset.title
+}
+
+private final class NetegramDeletedMarkColorArguments {
+}
+
+private struct NetegramDeletedMarkColorEntry: ItemListNodeEntry {
+    let index: Int32
+    let preset: NetegramDeletedMarkColorPreset
+    let checked: Bool
+
+    var section: ItemListSectionId {
+        return 0
+    }
+
+    var stableId: Int32 {
+        return self.index
+    }
+
+    static func <(lhs: NetegramDeletedMarkColorEntry, rhs: NetegramDeletedMarkColorEntry) -> Bool {
+        return lhs.index < rhs.index
+    }
+
+    static func ==(lhs: NetegramDeletedMarkColorEntry, rhs: NetegramDeletedMarkColorEntry) -> Bool {
+        return lhs.index == rhs.index && lhs.preset == rhs.preset && lhs.checked == rhs.checked
+    }
+
+    func item(presentationData: ItemListPresentationData, arguments: Any) -> ListViewItem {
+        let preset = self.preset
+        return ItemListCheckboxItem(presentationData: presentationData, systemStyle: .glass, title: preset.title, style: .right, checked: self.checked, zeroSeparatorInsets: false, sectionId: self.section, action: {
+            NetegramGhostPreferences.shared.setDeletedMarkColor(preset.rgb)
+        })
+    }
+}
+
+private func netegramDeletedMarkColorController(context: AccountContext) -> ViewController {
+    let signal = combineLatest(queue: .mainQueue(),
+        context.sharedContext.presentationData,
+        NetegramGhostPreferences.shared.signal
+    )
+    |> deliverOnMainQueue
+    |> map { presentationData, settings -> (ItemListControllerState, (ItemListNodeState, Any)) in
+        let entries = NetegramDeletedMarkColorPreset.allCases.enumerated().map { index, preset in
+            NetegramDeletedMarkColorEntry(index: Int32(index), preset: preset, checked: preset.rgb == settings.deletedMarkColor)
+        }
+
+        let controllerState = ItemListControllerState(
+            presentationData: ItemListPresentationData(presentationData),
+            title: .text(NetegramGhostStrings.markColorTitle),
+            leftNavigationButton: nil,
+            rightNavigationButton: nil,
+            backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back)
+        )
+        let listState = ItemListNodeState(
+            presentationData: ItemListPresentationData(presentationData),
+            entries: entries,
+            style: .blocks,
+            animateChanges: false
+        )
+
+        return (controllerState, (listState, NetegramDeletedMarkColorArguments()))
+    }
+
+    return ItemListController(context: context, state: signal)
 }
 
 /// Opens Telegram's own chat picker and hands back what was chosen.
@@ -361,11 +519,20 @@ private func netegramGhostEntries(settings: NetegramGhostSettings, category: Net
         entries.append(.scheduleEnd(.hideOnline, netegramFormatTimeOfDay(settings.scheduleHideOnlineEnd)))
     }
 
+    if category == .deletedMessages {
+        entries.append(.markColor(netegramDeletedMarkColorName(settings.deletedMarkColor)))
+        entries.append(.markColorFooter)
+        entries.append(.markOpacity(Int((settings.deletedMarkOpacity * 100.0).rounded())))
+        entries.append(.markSize(Int(settings.deletedMarkSize.rounded())))
+        entries.append(.markSizeFooter)
+    }
+
     return entries
 }
 
 public func netegramGhostController(context: AccountContext, category: NetegramGhostCategory) -> ViewController {
     var presentPeerPickerImpl: ((String, [Int64], @escaping ([Int64]) -> Void) -> Void)?
+    var pushControllerImpl: ((ViewController) -> Void)?
 
     let arguments = NetegramGhostArguments(updateFlag: { key, value in
         NetegramGhostPreferences.shared.setFlag(key, value: value)
@@ -413,6 +580,12 @@ public func netegramGhostController(context: AccountContext, category: NetegramG
         case .hideOnline:
             NetegramGhostPreferences.shared.setScheduleWindow(startKey: NetegramGhostKeys.scheduleHideOnlineStart, endKey: NetegramGhostKeys.scheduleHideOnlineEnd, startMinutes: current.scheduleHideOnlineStart, endMinutes: minutes)
         }
+    }, openMarkColor: {
+        pushControllerImpl?(netegramDeletedMarkColorController(context: context))
+    }, updateMarkOpacity: { percent in
+        NetegramGhostPreferences.shared.setDeletedMarkOpacity(Double(percent) / 100.0)
+    }, updateMarkSize: { points in
+        NetegramGhostPreferences.shared.setDeletedMarkSize(Double(points))
     })
 
     let signal = combineLatest(queue: .mainQueue(),
@@ -444,6 +617,9 @@ public func netegramGhostController(context: AccountContext, category: NetegramG
             return
         }
         netegramGhostPresentPeerPicker(context: context, selected: selected, title: title, parentController: controller, completion: completion)
+    }
+    pushControllerImpl = { [weak controller] c in
+        controller?.push(c)
     }
     return controller
 }
