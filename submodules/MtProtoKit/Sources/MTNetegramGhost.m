@@ -317,6 +317,22 @@ static BOOL MTGhostIsFakeRead(NSString *peerKey) {
     return [[NGStore stringArrayForKey:@"netegram.fake.readRawIds"] containsObject:peerKey];
 }
 
+/// A chat listed under `listKey` is exempt from whatever ghost effect is checking — the person
+/// sees the real signal regardless of the matching global switch. Two kinds of list share this:
+/// a handful of per-category exception lists (just this one signal), and the single "trusted
+/// chats" list that every per-chat-capable ghost effect also checks, for people you would
+/// rather not hide anything from at all rather than picking category by category.
+static BOOL MTGhostIsInList(NSString *peerKey, NSString *listKey) {
+    if (peerKey == nil) {
+        return NO;
+    }
+    return [[NGStore stringArrayForKey:listKey] containsObject:peerKey];
+}
+
+static BOOL MTGhostIsExempt(NSString *peerKey, NSString *categoryListKey) {
+    return MTGhostIsInList(peerKey, @"netegram.ghost.trustedChats") || MTGhostIsInList(peerKey, categoryListKey);
+}
+
 /// channels.readHistory names its chat with an InputChannel rather than an InputPeer. Only the
 /// plain inputChannel#f35aec28 carries the id directly; anything else is left unmatched.
 static NSString *MTGhostChannelKey(NSData *payload) {
@@ -333,12 +349,37 @@ static NSString *MTGhostChannelKey(NSData *payload) {
     return [NSString stringWithFormat:@"%lld", (long long)channelId];
 }
 
+/// Whether the current wall-clock time falls in a stored HH:MM-HH:MM window, stored as
+/// minutes-since-midnight. A window that wraps past midnight (e.g. 23:00-07:00) is handled by
+/// checking "at or after start, or before end" instead of "between the two". A zero-length
+/// window (start == end) reads as off rather than as the whole day, so a schedule nobody has
+/// actually set yet does not silently start applying.
+static BOOL MTGhostIsWithinSchedule(NSString *enabledKey, NSString *startKey, NSString *endKey) {
+    if (!MTGhostFlag(enabledKey)) {
+        return NO;
+    }
+    NSInteger start = [NGStore integerForKey:startKey];
+    NSInteger end = [NGStore integerForKey:endKey];
+    if (start == end) {
+        return NO;
+    }
+    NSDateComponents *components = [[NSCalendar currentCalendar] components:(NSCalendarUnitHour | NSCalendarUnitMinute) fromDate:[NSDate date]];
+    NSInteger nowMinutes = components.hour * 60 + components.minute;
+    if (start < end) {
+        return nowMinutes >= start && nowMinutes < end;
+    }
+    return nowMinutes >= start || nowMinutes < end;
+}
+
 /// account.updateStatus#6628562c offline:Bool
 ///
 /// The client sends offline=true when it stops being in the foreground and offline=false when
 /// it comes back. Hiding the online status means suppressing the "I am back" call; staying
 /// always online means suppressing the "I am away" one. They are opposites, which is why the
-/// two switches cannot both be on.
+/// two switches cannot both be on — each also has its own optional time window, checked here
+/// rather than through a separate timer: this function already runs exactly when it matters
+/// (the moment a status update would go out), so there is nothing a background timer would add
+/// besides another thing that can drift out of sync.
 static BOOL MTGhostShouldBlockUpdateStatus(NSData *payload) {
     if (payload.length < 8) {
         return NO;
@@ -348,10 +389,15 @@ static BOOL MTGhostShouldBlockUpdateStatus(NSData *payload) {
     // boolTrue#997275b5 reads as -1720552011 when taken as a signed int32.
     BOOL goingOffline = (uint32_t)offlineFlag == 0x997275b5;
 
+    BOOL alwaysOnline = MTGhostFlag(@"netegram.ghost.alwaysOnline")
+        || MTGhostIsWithinSchedule(@"netegram.ghost.scheduleAlwaysOnlineEnabled", @"netegram.ghost.scheduleAlwaysOnlineStart", @"netegram.ghost.scheduleAlwaysOnlineEnd");
+    BOOL hideOnline = MTGhostFlag(@"netegram.ghost.hideOnline")
+        || MTGhostIsWithinSchedule(@"netegram.ghost.scheduleHideOnlineEnabled", @"netegram.ghost.scheduleHideOnlineStart", @"netegram.ghost.scheduleHideOnlineEnd");
+
     if (goingOffline) {
-        return MTGhostFlag(@"netegram.ghost.alwaysOnline");
+        return alwaysOnline;
     }
-    return MTGhostFlag(@"netegram.ghost.hideOnline");
+    return hideOnline;
 }
 
 static BOOL MTGhostShouldBlockSetTyping(NSData *payload) {
@@ -373,6 +419,9 @@ static BOOL MTGhostShouldBlockSetTyping(NSData *payload) {
         return NO;
     }
     if (MTGhostIsFakeActivity(peerKey, actionId)) {
+        return NO;
+    }
+    if (MTGhostIsExempt(peerKey, @"netegram.ghost.typingExceptions")) {
         return NO;
     }
     NSString *key = MTGhostKeyForAction(actionId);
@@ -460,7 +509,11 @@ static NSInteger MTGhostSendGeneration = 0;
             return nil;
         }
         NSUInteger peerOffset = 4; // messages.readHistory has no flags
-        if (MTGhostIsFakeRead(MTGhostPeerKey(payload, &peerOffset))) {
+        NSString *peerKey = MTGhostPeerKey(payload, &peerOffset);
+        if (MTGhostIsFakeRead(peerKey)) {
+            return nil;
+        }
+        if (MTGhostIsExempt(peerKey, @"netegram.ghost.readExceptions")) {
             return nil;
         }
         // Answering someone and then leaving their message on one tick is a stranger signal
@@ -474,7 +527,8 @@ static NSInteger MTGhostSendGeneration = 0;
         if (!MTGhostFlag(@"netegram.ghost.readReceipts")) {
             return nil;
         }
-        if (MTGhostIsFakeRead(MTGhostChannelKey(payload))) {
+        NSString *channelKey = MTGhostChannelKey(payload);
+        if (MTGhostIsFakeRead(channelKey) || MTGhostIsExempt(channelKey, @"netegram.ghost.readExceptions")) {
             return nil;
         }
         return MTGhostBoolTrue();
@@ -486,13 +540,29 @@ static NSInteger MTGhostSendGeneration = 0;
         // A separate call from readHistory: opening a chat can clear the @-mention badge
         // without the rest of the history being marked read, or the other way round, so this
         // needs its own switch rather than riding on the general read-receipts one.
-        return MTGhostFlag(@"netegram.ghost.readMentions") ? MTGhostAffectedHistory() : nil;
+        if (!MTGhostFlag(@"netegram.ghost.readMentions")) {
+            return nil;
+        }
+        NSUInteger peerOffset = 4; // flags, then peer
+        NSString *peerKey = MTGhostPeerKey(payload, &peerOffset);
+        if (MTGhostIsExempt(peerKey, @"netegram.ghost.readExceptions")) {
+            return nil;
+        }
+        return MTGhostAffectedHistory();
     }
     if (functionId == MTGhostReadReactions) {
         return MTGhostFlag(@"netegram.ghost.readReceipts") ? MTGhostAffectedMessages() : nil;
     }
     if (functionId == MTGhostStoriesReadStories) {
-        return MTGhostFlag(@"netegram.ghost.storyViews") ? MTGhostEmptyVector() : nil;
+        if (!MTGhostFlag(@"netegram.ghost.storyViews")) {
+            return nil;
+        }
+        NSUInteger peerOffset = 4; // stories.readStories has no flags
+        NSString *peerKey = MTGhostPeerKey(payload, &peerOffset);
+        if (MTGhostIsExempt(peerKey, @"netegram.ghost.storyViewExceptions")) {
+            return nil;
+        }
+        return MTGhostEmptyVector();
     }
     if (functionId == MTGhostReadMessageContents) {
         return MTGhostFlag(@"netegram.ghost.viewOnce") ? MTGhostAffectedMessages() : nil;

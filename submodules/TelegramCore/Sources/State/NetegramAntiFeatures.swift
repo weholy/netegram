@@ -28,6 +28,24 @@ enum NetegramAnti {
     }
 }
 
+/// Netegram: locally hides that someone else is typing to you.
+///
+/// A different axis from every other ghost switch: those control what other people see about
+/// you; this one controls what you see about them. There is no server call to suppress — the
+/// activity has already arrived — so this filters the signal itself rather than living beside
+/// the interception code in MTNetegramGhost.m.
+public func netegramFilterIncomingActivities(_ activities: [(PeerId, PeerInputActivity)]) -> [(PeerId, PeerInputActivity)] {
+    guard NGStore.bool(forKey: "netegram.ghost.hideIncomingTyping") else {
+        return activities
+    }
+    return activities.filter { _, activity in
+        if case .typingText = activity {
+            return false
+        }
+        return true
+    }
+}
+
 /// Netegram: true while the client ignores a chat's ban on saving and forwarding.
 ///
 /// The restriction is advisory — the server sends the content either way and only asks the

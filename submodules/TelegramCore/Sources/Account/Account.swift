@@ -1622,16 +1622,16 @@ public class Account {
     public func peerInputActivities(peerId: PeerActivitySpace) -> Signal<[(PeerId, PeerInputActivity)], NoError> {
         return self.peerInputActivityManager.activities(peerId: peerId)
         |> map { activities in
-            return activities.map({ ($0.0, $0.1.activity) })
+            return netegramFilterIncomingActivities(activities.map({ ($0.0, $0.1.activity) }))
         }
     }
-    
+
     public func allPeerInputActivities() -> Signal<[PeerActivitySpace: [(PeerId, PeerInputActivity)]], NoError> {
         return self.peerInputActivityManager.allActivities()
         |> map { activities in
             var result: [PeerActivitySpace: [(PeerId, PeerInputActivity)]] = [:]
             for (chatPeerId, chatActivities) in activities {
-                result[chatPeerId] = chatActivities.map { ($0.0, $0.1.activity) }
+                result[chatPeerId] = netegramFilterIncomingActivities(chatActivities.map { ($0.0, $0.1.activity) })
             }
             return result
         }

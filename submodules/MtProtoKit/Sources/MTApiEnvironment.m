@@ -1,4 +1,5 @@
 #import <MtProtoKit/MTApiEnvironment.h>
+#import <NetegramStore/NGStore.h>
 
 #if TARGET_OS_IPHONE
 #   import <UIKit/UIKit.h>
@@ -374,12 +375,23 @@ static NSData *base64_decode(NSString *str) {
             _deviceModel = [self platformString];
         }
         _deviceModelName = deviceModelName;
+
+        // Netegram: reported OS version, same override shape as deviceModel above — the real
+        // value unless ghost mode has a replacement on file. Read straight from NGStore
+        // rather than threaded through as an init parameter: this initializer already has one
+        // call site per subclassed environment copy inside this file, and a plain store read
+        // reaches all of them without changing the signature at each one.
+        NSString *spoofedSystemVersion = [NGStore stringForKey:@"netegram.ghost.systemVersion"];
+        if (spoofedSystemVersion.length > 0) {
+            _systemVersion = spoofedSystemVersion;
+        } else {
 #if TARGET_OS_IPHONE
-        _systemVersion = [[UIDevice currentDevice] systemVersion];
+            _systemVersion = [[UIDevice currentDevice] systemVersion];
 #else
-        NSProcessInfo *pInfo = [NSProcessInfo processInfo];
-        _systemVersion = [[[pInfo operatingSystemVersionString] componentsSeparatedByString:@" "] objectAtIndex:1];
+            NSProcessInfo *pInfo = [NSProcessInfo processInfo];
+            _systemVersion = [[[pInfo operatingSystemVersionString] componentsSeparatedByString:@" "] objectAtIndex:1];
 #endif
+        }
         
 NSString *suffix = @"";
 #if TARGET_OS_OSX
@@ -393,7 +405,9 @@ NSString *suffix = @"";
         NSString *versionString = [[NSString alloc] initWithFormat:@"%@ (%@) %@", [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleShortVersionString"], [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleVersion"], suffix];
         _appVersion = versionString;
         
-        _systemLangCode = [[NSLocale preferredLanguages] objectAtIndex:0];
+        // Netegram: reported UI language, same override shape as systemVersion above.
+        NSString *spoofedLangCode = [NGStore stringForKey:@"netegram.ghost.langCode"];
+        _systemLangCode = (spoofedLangCode.length > 0) ? spoofedLangCode : [[NSLocale preferredLanguages] objectAtIndex:0];
     #if TARGET_OS_OSX
         _langPack = @"macos";
     #else

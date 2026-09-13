@@ -14,17 +14,17 @@ private final class NetegramSettingsControllerArguments {
     let openHideButtons: () -> Void
     let openNavBar: () -> Void
     let openLiquidGlass: () -> Void
-    let openGhost: () -> Void
+    let openGhostCategory: (NetegramGhostCategory) -> Void
     let openLocalFeatures: () -> Void
     let openAutoFormat: () -> Void
     let openFakeActivity: () -> Void
     let openTransfer: () -> Void
 
-    init(openHideButtons: @escaping () -> Void, openNavBar: @escaping () -> Void, openLiquidGlass: @escaping () -> Void, openGhost: @escaping () -> Void, openLocalFeatures: @escaping () -> Void, openAutoFormat: @escaping () -> Void, openFakeActivity: @escaping () -> Void, openTransfer: @escaping () -> Void) {
+    init(openHideButtons: @escaping () -> Void, openNavBar: @escaping () -> Void, openLiquidGlass: @escaping () -> Void, openGhostCategory: @escaping (NetegramGhostCategory) -> Void, openLocalFeatures: @escaping () -> Void, openAutoFormat: @escaping () -> Void, openFakeActivity: @escaping () -> Void, openTransfer: @escaping () -> Void) {
         self.openHideButtons = openHideButtons
         self.openNavBar = openNavBar
         self.openLiquidGlass = openLiquidGlass
-        self.openGhost = openGhost
+        self.openGhostCategory = openGhostCategory
         self.openLocalFeatures = openLocalFeatures
         self.openAutoFormat = openAutoFormat
         self.openFakeActivity = openFakeActivity
@@ -51,7 +51,8 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
     case hideButtons
     case navBar
     case liquidGlass
-    case ghost
+    case ghostHeader
+    case ghostCategory(NetegramGhostCategory, Int)
     case localFeatures
     case autoFormat
     case fakeActivity
@@ -67,7 +68,7 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
             return NetegramSettingsSection.navBar.rawValue
         case .liquidGlass:
             return NetegramSettingsSection.liquidGlass.rawValue
-        case .ghost:
+        case .ghostHeader, .ghostCategory:
             return NetegramSettingsSection.ghost.rawValue
         case .localFeatures:
             return NetegramSettingsSection.localFeatures.rawValue
@@ -84,22 +85,24 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
         switch self {
         case .logoHeader:
             return -1
-        case .ghost:
-            return 3
-        case .liquidGlass:
-            return 4
-        case .hideButtons:
-            return 5
-        case .navBar:
-            return 6
-        case .localFeatures:
-            return 7
-        case .autoFormat:
-            return 8
         case .fakeActivity:
             return 2
+        case .ghostHeader:
+            return 3
+        case let .ghostCategory(category, _):
+            return 4 + Int32(NetegramGhostCategory.allCases.firstIndex(of: category) ?? 0)
+        case .liquidGlass:
+            return 11
+        case .hideButtons:
+            return 12
+        case .navBar:
+            return 13
+        case .localFeatures:
+            return 14
+        case .autoFormat:
+            return 15
         case .transfer:
-            return 9
+            return 16
         }
     }
 
@@ -126,9 +129,12 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
             return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramLookStrings.navBarTitle, label: "", additionalDetailLabel: NetegramLookStrings.navBarSubtitle, sectionId: self.section, style: .blocks, action: {
                 arguments.openNavBar()
             })
-        case .ghost:
-            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramGhostStrings.title, label: "", additionalDetailLabel: NetegramGhostStrings.subtitle, sectionId: self.section, style: .blocks, action: {
-                arguments.openGhost()
+        case .ghostHeader:
+            return ItemListSectionHeaderItem(presentationData: presentationData, text: NetegramGhostStrings.title.uppercased(), sectionId: self.section)
+        case let .ghostCategory(category, activeCount):
+            let label = activeCount == 0 ? "Выключено" : "Включено: \(activeCount)"
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: category.title, label: "", additionalDetailLabel: label, sectionId: self.section, style: .blocks, action: {
+                arguments.openGhostCategory(category)
             })
         case .localFeatures:
             return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: NetegramLocalStrings.localFeatures, label: "", additionalDetailLabel: "Премиум, звёзды, значки", sectionId: self.section, style: .blocks, action: {
@@ -150,16 +156,25 @@ private enum NetegramSettingsEntry: ItemListNodeEntry {
     }
 }
 
-/// The full, and now only, list. "Владелец" used to unlock four more screens — Внешний вид,
-/// Фон приложения and Объявление — which are gone: their settings entry was the sole way to
-/// reach or change them, so removing it retires the feature rather than merely hiding it.
-private let netegramPublicEntries: [NetegramSettingsEntry] = [.ghost, .liquidGlass, .navBar]
-
-private func netegramSettingsEntries(isOwner: Bool) -> [NetegramSettingsEntry] {
-    guard isOwner else {
-        return netegramPublicEntries
+/// "Владелец" used to unlock four more screens — Внешний вид, Фон приложения and Объявление —
+/// which are gone: their settings entry was the sole way to reach or change them, so removing
+/// it retires the feature rather than merely hiding it.
+///
+/// Режим призрака stays available either way: it is a per-device privacy setting, not an
+/// owner-only extra, so it sits directly inside "Netegram" for every build — one screen tap
+/// away, not nested under its own landing page.
+private func netegramGhostSettingsEntries(_ ghostSettings: NetegramGhostSettings) -> [NetegramSettingsEntry] {
+    return [.ghostHeader] + NetegramGhostCategory.allCases.map { category in
+        .ghostCategory(category, NetegramGhostPreferences.activeCount(in: category, settings: ghostSettings))
     }
-    return [.logoHeader(true), .fakeActivity, .ghost, .liquidGlass, .hideButtons, .navBar, .localFeatures, .autoFormat, .transfer]
+}
+
+private func netegramSettingsEntries(isOwner: Bool, ghostSettings: NetegramGhostSettings) -> [NetegramSettingsEntry] {
+    let ghostEntries = netegramGhostSettingsEntries(ghostSettings)
+    guard isOwner else {
+        return ghostEntries + [.liquidGlass, .navBar]
+    }
+    return [.logoHeader(true), .fakeActivity] + ghostEntries + [.liquidGlass, .hideButtons, .navBar, .localFeatures, .autoFormat, .transfer]
 }
 
 /// Netegram: the account this build belongs to.
@@ -211,8 +226,8 @@ public func netegramSettingsController(context: AccountContext) -> ViewControlle
         pushControllerImpl?(netegramNavBarController(context: context))
     }, openLiquidGlass: {
         pushControllerImpl?(netegramLiquidGlassController(context: context))
-    }, openGhost: {
-        pushControllerImpl?(netegramGhostController(context: context))
+    }, openGhostCategory: { category in
+        pushControllerImpl?(netegramGhostController(context: context, category: category))
     }, openLocalFeatures: {
         pushControllerImpl?(netegramLocalFeaturesController(context: context))
     }, openAutoFormat: {
@@ -233,10 +248,11 @@ public func netegramSettingsController(context: AccountContext) -> ViewControlle
 
     let signal = combineLatest(queue: .mainQueue(),
         context.sharedContext.presentationData,
-        ownerSignal
+        ownerSignal,
+        NetegramGhostPreferences.shared.signal
     )
     |> deliverOnMainQueue
-    |> map { presentationData, isOwner -> (ItemListControllerState, (ItemListNodeState, Any)) in
+    |> map { presentationData, isOwner, ghostSettings -> (ItemListControllerState, (ItemListNodeState, Any)) in
         let controllerState = ItemListControllerState(
             presentationData: ItemListPresentationData(presentationData),
             title: .text(NetegramStrings.netegram),
@@ -246,7 +262,7 @@ public func netegramSettingsController(context: AccountContext) -> ViewControlle
         )
         let listState = ItemListNodeState(
             presentationData: ItemListPresentationData(presentationData),
-            entries: netegramSettingsEntries(isOwner: isOwner),
+            entries: netegramSettingsEntries(isOwner: isOwner, ghostSettings: ghostSettings),
             style: .blocks,
             animateChanges: false
         )
